@@ -1,0 +1,165 @@
+# newapi-mcp 项目设计文档
+
+> 一个用于操作 [new-api](https://github.com/QuantumNous/new-api) 网关的 MCP (Model Context Protocol) 服务器，让 Agent 能够读取 new-api 运行状态、管理渠道/令牌/用户，并对网关进行受控运维操作。
+
+- **版本**：v0.1（设计稿）
+- **目标部署**：本机 DSH（DeepSeek Harness，127.0.0.1:3082）作为 MCP client，经 cordis.patch.yml 挂载；new-api 实例为 newapi.ashou.site（及任意 OpenAI 风格 new-api 部署）。
+
+---
+
+## 1. 背景与目标
+
+new-api 是流行的 LLM 聚合分发网关（渠道管理、令牌分发、计费统计）。目前 Agent 想知道「网关有哪些模型可用、某渠道是否挂了、token 用量多少、某渠道余额还剩多少」，只能靠 curl 手动查或上浏览器面板。
+
+本项目提供一个 MCP server，把 new-api 的管理面（`/api/*`）与中继面状态封装成结构化工具，供 Agent 直接调用：
+
+**目标**
+1. **只读状态优先**：模型列表、渠道健康、余额、用量日志、系统状态，低权限即可用。
+2. **受控写操作**：渠道的启停/测试/余额刷新、令牌管理，需显式开启写模式。
+3. **最小配置**：只需 `NEWAPI_BASE_URL` + `NEWAPI_TOKEN`（面板 PAT）两个环境变量。
+4. **安全边界清晰**：敏感操作（删除、系统设置修改）默认不暴露。
+
+**非目标**
+- 不做中继流量代理（Agent 调模型仍走 DSH 自己的 llm 路由）。
+- 不做 new-api 前端/数据库的直接操作（全部经 HTTP API，兼容官方版本，不依赖 DB schema）。
+
+## 2. 技术选型
+
+| 项 | 选择 | 理由 |
+|---|---|---|
+| 语言 | Go 1.26（本机 /opt/go/bin） | 单二进制、无运行时依赖、交叉编译方便；本机已有完整工具链 |
+| MCP SDK | `github.com/mark3labs/mcp-go` | 成熟的 Go MCP 实现，支持 stdio + streamable HTTP |
+| 传输 | stdio（首选）+ Streamable HTTP（可选） | stdio 由 DSH/cordis 直接拉起；HTTP 便于远程部署 |
+| HTTP 客户端 | net/http | 直连，注意走 `no_proxy`（newapi.ashou.site 已在 DSH 的 no_proxy 列表） |
+
+## 3. new-api API 契约要点（依据官方 docs/authentication.md 与 router 源码）
+
+- **鉴权**：面板 PAT（用户设置里生成的 System Access Token），`Authorization: Bearer <pat>`（也兼容无 Bearer 前缀的裸值）。**不再需要** `New-Api-User` 请求头（官方已移除该要求）。PAT 无法调用登录会话管理接口（refresh/logout/sessions），本 MCP 也不使用它们。
+- **响应格式**：统一 `{ "success": bool, "message": string, "data": ... }`。
+- **分页**：列表类接口用 `p`（页码，1 起）+ `page_size` 查询参数。
+- **主要端点**（基于 one-api 血统的 new-api 路由，实现时以目标版本 router 为准逐个核对）：
+
+| 分组 | 端点 | 用途 |
+|---|---|---|
+| 状态 | `GET /api/status` | 站点公开状态（无需鉴权）：版本、公告、注册开关 |
+| 模型 | `GET /api/models`、`GET /api/pricing` | 可用模型列表 / 模型倍率定价 |
+| 渠道 | `GET /api/channel/`、`GET /api/channel/:id`、`POST /api/channel/`、`PUT /api/channel/`、`DELETE /api/channel/:id` | 渠道 CRUD（需管理员 PAT） |
+| 渠道运维 | `GET /api/channel/test/:id?model=`、`GET /api/channel/update_balance/:id`、`PUT /api/channel/`（status 字段切换启停）、`GET /api/channel/tag/:tag` | 测试渠道可用性 / 刷新余额 / 启停 / 按标签操作 |
+| 令牌 | `GET /api/token/`、`POST /api/token/`、`PUT /api/token/`、`DELETE /api/token/:id` | 用户级 sk- 令牌管理（普通 PAT 即可） |
+| 用户 | `GET /api/user/:id`、`GET /api/user/self`、`GET /api/user/` | 用户/额度查询（管理员可列全部） |
+| 日志 | `GET /api/log/`、`GET /api/log/stat`、`GET /api/log/token` | 消费/错误日志与统计（Agent 判断「网关最近是否报错」的核心数据源） |
+| 兑换码 | `GET /api/redemption/`、`POST /api/redemption/` | 额度兑换码（管理员） |
+| 系统设置 | `GET /api/option/`、`PUT /api/option/` | 运营设置（高危，默认不暴露） |
+
+> 兼容性策略：new-api 迭代快，MCP 内所有路径集中在 `internal/newapi/routes.go` 一处常量表，端点漂移只改一处。
+
+## 4. 工具集设计（MCP Tools）
+
+按权限分三档：**read**（默认）/ **ops**（`NEWAPI_WRITEMODE=ops`）/ **admin**（`NEWAPI_WRITEMODE=admin`）。每档都是环境变量显式开启，未开启时对应工具不注册（而非注册了再拒绝），减少 Agent 误选。
+
+### 4.1 read 档（默认）
+
+| 工具 | 参数 | 说明 |
+|---|---|---|
+| `newapi_status` | — | `GET /api/status`：版本、系统配置摘要；附带一次对 `/v1/models` 的探测判断 relay 活性 |
+| `newapi_list_models` | — | 全站可用模型 + 分组归属 |
+| `newapi_list_channels` | `page?, page_size?, status?` | 渠道列表（id、名称、类型、状态、余额、标签、模型数） |
+| `newapi_get_channel` | `id` | 单渠道详情（**掩码 key**，见 §7 安全） |
+| `newapi_list_tokens` | `page?` | 当前 PAT 用户的令牌列表（sk- 值默认掩码） |
+| `newapi_logs` | `type?, start_timestamp?, end_timestamp?, page?` | 消费/错误日志检索 |
+| `newapi_usage_summary` | `days?`（默认 7） | 聚合 `log/stat`：按模型/渠道的 tokens、次数、消费额 |
+| `newapi_pricing` | `model?` | 模型倍率与定价 |
+
+### 4.2 ops 档（+）
+
+| 工具 | 参数 | 说明 |
+|---|---|---|
+| `newapi_test_channel` | `id, model?` | 对渠道发一次测试请求，返回延迟/错误 |
+| `newapi_update_channel_balance` | `id` | 刷新渠道余额 |
+| `newapi_set_channel_status` | `id, enabled: bool` | 启用/禁用渠道（PUT status） |
+| `newapi_create_token` / `newapi_delete_token` | 令牌名、额度、过期等 | 令牌生命周期（返回的完整 sk- 仅本次响应可见） |
+| `newapi_batch_test_channels` | `tag?` | 按标签批量测试并汇总健康报告 |
+
+### 4.3 admin 档（+）
+
+| 工具 | 参数 | 说明 |
+|---|---|---|
+| `newapi_create_channel` / `newapi_update_channel` | 渠道全字段 | 渠道 CRUD（写 key 必须显式传入） |
+| `newapi_delete_channel` | `id, confirm: true` | 删除需双重确认参数 |
+| `newapi_list_users` | `page?` | 用户与额度 |
+| **明确不做** | — | `option/`（系统设置）、`redemption/`（兑换码）暂不封装，避免 Agent 误改全局配置 |
+
+### 4.4 资源（MCP Resources，可选）
+
+- `newapi://status`、`newapi://models`——便于 client 侧作为上下文预取，不占工具调用。
+
+## 5. 架构
+
+```
+mcp_newapi/
+├── cmd/newapi-mcp/main.go        # 入口：读 env，装配 server，stdio 启动
+├── internal/
+│   ├── newapi/
+│   │   ├── routes.go             # 端点常量表（唯一耦合点）
+│   │   ├── client.go             # HTTP client：鉴权、重试、超时、统一响应解包
+│   │   ├── channels.go           # 渠道域方法
+│   │   ├── tokens.go             # 令牌域方法
+│   │   ├── logs.go               # 日志/统计域方法
+│   │   └── types.go              # DTO（只保留 Agent 关心的字段，掩码在此层做）
+│   └── mcp/
+│       ├── server.go             # mcp-go server 装配、工具注册（按 writemode 分档）
+│       ├── tools_read.go         # read 档工具
+│       ├── tools_ops.go
+│       ├── tools_admin.go
+│       └── mask.go               # key 掩码（sk-abc...xyz → 保留头尾 4 位）
+├── DESIGN.md                     # 本文档
+└── go.mod
+```
+
+**请求链路**：MCP tool → 参数校验 → `newapi.Client` 域方法 → HTTP（10s 超时，GET 失败重试 1 次）→ 统一解包 `{success,message,data}` → DTO 裁剪+掩码 → JSON 返回给 Agent。
+
+**错误约定**：new-api 返回 `success:false` 时，MCP 工具返回结构化错误（含 HTTP 状态码 + message），不 panic、不吞错；网络错误明确标注「网关不可达」以便 Agent 区分「网关挂了」和「查询本身错」。
+
+## 6. 配置
+
+| 环境变量 | 必填 | 说明 |
+|---|---|---|
+| `NEWAPI_BASE_URL` | ✅ | 如 `https://newapi.ashou.site`（不带尾斜杠） |
+| `NEWAPI_TOKEN` | ✅ | 面板 PAT（建议用管理员账号的 PAT 以获得渠道读权限；普通用户 PAT 也能用 read 档的子集） |
+| `NEWAPI_WRITEMODE` | — | `read`（缺省）/ `ops` / `admin` |
+| `NEWAPI_TIMEOUT` | — | HTTP 超时秒数，默认 10 |
+
+DSH 挂载（cordis.patch.yml，改后需重启 DSH 生效）：
+
+```yaml
+mcp-newapi:
+  command: /home/radxa/project/mcp_newapi/bin/newapi-mcp
+  env:
+    NEWAPI_BASE_URL: https://newapi.ashou.site
+    NEWAPI_TOKEN: <面板PAT，勿提交入库>
+```
+
+> 注意：token 写进 cordis.patch.yml 即落入 `~/.dsh/`，属本机私有配置，不入 git。
+
+## 7. 安全设计
+
+1. **掩码原则**：所有工具返回中的上游渠道 key、sk- 令牌值默认掩码（保留头尾各 4 位）；仅「创建令牌」的当次响应返回完整值（否则创建无意义）。
+2. **能力分档靠不注册**：低档模式下写工具根本不存在，Agent 无法「试探」。
+3. **删除类工具带 `confirm` 必填参数**，且 admin 档才注册。
+4. **不暴露 option/redemption**：全局运营配置的修改风险远大于收益。
+5. **PAT 权限天然继承**：MCP 能做的最多等于该 PAT 账号在面板里能做的，不额外放大权限；建议为 Agent 单独建一个账号+PAT，便于审计与回收。
+6. **日志与凭据**：MCP 进程自身不打请求体日志（避免 key 落盘）；`/proc/self/environ` 风险参考 github-mcp-server 教训，Go 侧启动读取 env 后即无需再持有敏感值副本在日志路径。
+
+## 8. 实现里程碑
+
+1. **M1 骨架**：go.mod、client.go（鉴权+解包+超时）、mcp-go stdio server、`newapi_status` 一个工具打通，DSH 挂载跑通。
+2. **M2 read 档**：§4.1 全部工具 + 掩码层 + 对目标 new-api 实例逐端点核对（路径/字段以实例版本为准修正 routes.go）。
+3. **M3 ops 档**：渠道测试/启停/余额、令牌管理；`newapi_usage_summary` 聚合。
+4. **M4 admin 档 + 打磨**：渠道 CRUD、README、（可选）Streamable HTTP 传输。
+
+## 9. 验收场景
+
+- Agent 问「网关现在有哪些模型、glm-5.3 走哪个渠道」→ `newapi_list_models` + `newapi_list_channels`。
+- Agent 巡检：「测试所有启用渠道并汇报失败的」→ `newapi_batch_test_channels`。
+- Agent 运维：「渠道 X 余额快用完了/持续 5xx，先禁用它」→ `newapi_test_channel` → `newapi_set_channel_status`。
+- Agent 记账：「最近 7 天各模型消费多少」→ `newapi_usage_summary`。

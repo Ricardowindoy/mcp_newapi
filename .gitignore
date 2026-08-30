@@ -1,0 +1,5 @@
+# Go 构建缓存（工作区本地重定向，勿入库）
+.gocache/
+.gomodcache/
+.gopath/
+bin/
