@@ -1,0 +1,1 @@
+{"name": "handler", "summary": "22 个表内 MCP 工具 handler 薄壳（read/ops/admin 三文件）+ 表外条件注册的报表 handler（report.go）：解析参数→调域函数→统一输出", "paths": ["internal/mcp/handler/**"], "uses": ["domains", "client", "reporter"]}

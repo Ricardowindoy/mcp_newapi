@@ -1,0 +1,1 @@
+{"name": "reporter", "summary": "报表域：执行本地报表脚本并回读 markdown 产物（叶子包，无 HTTP 依赖）", "paths": ["internal/reporter/**"], "uses": []}

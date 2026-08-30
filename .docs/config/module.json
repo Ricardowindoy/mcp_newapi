@@ -1,0 +1,1 @@
+{"name": "config", "summary": "配置装载：内置默认值 < TOML 文件 < 环境变量，token_file 间接引用", "paths": ["internal/config/**"], "uses": []}

@@ -1,0 +1,1 @@
+{"name": "registry", "summary": "工具注册层：toolRegistry 表驱动汇总表（22 工具唯一索引 + 表外条件注册报表工具）+ writemode 档位过滤装配", "paths": ["internal/mcp/registry.go", "internal/mcp/server.go", "internal/mcp/registry_test.go"], "uses": ["handler", "client"]}

@@ -1,0 +1,1 @@
+{"name": "client", "summary": "new-api HTTP 传输层：鉴权/信封解包/APIError + routes.go 端点常量 + 掩码/分页共享件", "paths": ["internal/newapi/*.go"], "uses": []}

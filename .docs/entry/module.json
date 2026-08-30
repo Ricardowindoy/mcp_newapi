@@ -1,0 +1,1 @@
+{"name": "entry", "summary": "程序入口：--config 加载配置 → 装配 client/server → stdio 启动，零业务逻辑", "paths": ["cmd/**"], "uses": ["config", "registry", "client"]}

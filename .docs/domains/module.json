@@ -1,0 +1,1 @@
+{"name": "domains", "summary": "API 域子包一域一包（status/models/channels/tokens/logs）：DTO 裁剪 + 域函数 + 上游契约注释", "paths": ["internal/newapi/status/**", "internal/newapi/models/**", "internal/newapi/channels/**", "internal/newapi/tokens/**", "internal/newapi/logs/**"], "uses": ["client"]}
