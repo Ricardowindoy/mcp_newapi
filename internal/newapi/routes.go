@@ -5,13 +5,15 @@ package newapi
 const (
 	RouteStatus   = "/api/status"   // 公开：站点状态
 	RouteModels   = "/api/models"   // 公开：可用模型列表
-	RoutePricing  = "/api/pricing"  // 模型倍率定价
+	RoutePricing  = "/api/pricing"  // 模型倍率定价（实例可能禁用）
 	RouteChannels = "/api/channel/" // 渠道列表（管理员）
-	// M2/M3 扩展：
-	// RouteChannelDetail = "/api/channel/%d"
-	// RouteChannelTest   = "/api/channel/test/%d"
-	// RouteChannelBal    = "/api/channel/update_balance/%d"
-	// RouteTokens        = "/api/token/"
-	// RouteLogs          = "/api/log/"
-	// RouteLogStat       = "/api/log/stat"
+	RouteData     = "/api/data/"    // dashboard 按模型聚合数据
+
+	RouteChannelDetail = "/api/channel/%d" // 单渠道详情
+	RouteTokens        = "/api/token/"     // 令牌列表
+	RouteLogs          = "/api/log/"       // 日志列表
+	RouteLogStat       = "/api/log/stat"   // 日志总量统计
+	// M3 扩展：
+	// RouteChannelTest = "/api/channel/test/%d"
+	// RouteChannelBal  = "/api/channel/update_balance/%d"
 )
