@@ -39,13 +39,13 @@ export NEWAPI_WRITEMODE=ops            # read(默认)/ops/admin
 | ops | `newapi_create_token` / `newapi_delete_token` | 令牌生命周期 |
 | admin | `newapi_create_channel` / `newapi_update_channel` / `newapi_delete_channel` | 渠道 CRUD |
 
-## 架构（三层，单向依赖）
+## 架构（分层 + 域子包，单向依赖）
 
 ```
-internal/mcp/      工具层薄壳：参数解析 → 调域方法 → 输出
-internal/newapi/   API 层：client.go 传输 + routes.go 端点耦合点 + 一域一文件
-  channels.go 渠道读 · channel_ops.go 渠道运维 · channels_admin.go 渠道CRUD
-  tokens.go 令牌域 · logs.go 日志/聚合 · models.go · status.go · mask.go
+internal/config/   配置模块（TOML：默认 < 文件 < 环境变量，token_file 间接引用）
+internal/mcp/      工具层：registry.go 表驱动汇总表（17 工具唯一索引）+ handler/ 子包
+internal/newapi/   API 层：client.go 传输 + routes.go 端点耦合点
+  └─ 域子包：status/ models/ channels/(读+运维+管理) tokens/ logs/
 ```
 
 设计细节与上游契约注释见 [DESIGN.md](DESIGN.md)。

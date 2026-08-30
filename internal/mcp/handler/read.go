@@ -1,7 +1,7 @@
-package mcp
+package handler
 
-// tools_read.go read 档工具 handler 实现（声明见 registry.go）。
-// 薄壳：参数解析 → 调 internal/newapi 对应域方法 → jsonResult 输出。
+// read.go read 档工具 handler 实现（声明见 ../registry.go）。
+// 薄壳：参数解析 → 调域函数 → JSONResult 输出。
 
 import (
 	"context"
@@ -11,14 +11,19 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 
 	"mcp_newapi/internal/newapi"
+	"mcp_newapi/internal/newapi/channels"
+	"mcp_newapi/internal/newapi/logs"
+	"mcp_newapi/internal/newapi/models"
+	"mcp_newapi/internal/newapi/status"
+	"mcp_newapi/internal/newapi/tokens"
 )
 
-// statusHandler 处理 newapi_status。
-func statusHandler(client *newapi.Client) toolHandler {
+// StatusHandler 处理 newapi_status。
+func StatusHandler(client *newapi.Client) Handler {
 	return func(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		st, err := client.Status(ctx)
+		st, err := status.Get(ctx, client)
 		if err != nil {
-			return errResult(err)
+			return ErrResult(err)
 		}
 		out := map[string]any{
 			"version":          st.Version,
@@ -29,28 +34,28 @@ func statusHandler(client *newapi.Client) toolHandler {
 		// relay 探测：失败不致命，只标注
 		pctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
-		if err := client.RelayProbe(pctx); err != nil {
+		if err := status.RelayProbe(pctx, client); err != nil {
 			out["relay_reachable"] = false
 			out["relay_error"] = err.Error()
 		} else {
 			out["relay_reachable"] = true
 		}
-		return jsonResult(out)
+		return JSONResult(out)
 	}
 }
 
-// modelsHandler 处理 newapi_list_models。
-func modelsHandler(client *newapi.Client) toolHandler {
+// ModelsHandler 处理 newapi_list_models。
+func ModelsHandler(client *newapi.Client) Handler {
 	return func(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		m, err := client.Models(ctx)
+		m, err := models.List(ctx, client)
 		if err != nil {
-			return errResult(err)
+			return ErrResult(err)
 		}
 		total := 0
 		for _, l := range m {
 			total += len(l)
 		}
-		return jsonResult(map[string]any{
+		return JSONResult(map[string]any{
 			"groups":      m,
 			"group_count": len(m),
 			"model_count": total,
@@ -58,52 +63,52 @@ func modelsHandler(client *newapi.Client) toolHandler {
 	}
 }
 
-// channelsHandler 处理 newapi_list_channels。
-func channelsHandler(client *newapi.Client) toolHandler {
+// ChannelsHandler 处理 newapi_list_channels。
+func ChannelsHandler(client *newapi.Client) Handler {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		page := req.GetInt("page", 1)
 		pageSize := req.GetInt("page_size", 20)
-		status := req.GetInt("status", 0)
-		res, err := client.ListChannels(ctx, page, pageSize, status)
+		st := req.GetInt("status", 0)
+		res, err := channels.List(ctx, client, page, pageSize, st)
 		if err != nil {
-			return errResult(err)
+			return ErrResult(err)
 		}
-		return jsonResult(res)
+		return JSONResult(res)
 	}
 }
 
-// channelDetailHandler 处理 newapi_get_channel。
-func channelDetailHandler(client *newapi.Client) toolHandler {
+// ChannelDetailHandler 处理 newapi_get_channel。
+func ChannelDetailHandler(client *newapi.Client) Handler {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
-			return errResult(err)
+			return ErrResult(err)
 		}
-		ch, err := client.GetChannel(ctx, id)
+		ch, err := channels.Get(ctx, client, id)
 		if err != nil {
-			return errResult(err)
+			return ErrResult(err)
 		}
-		return jsonResult(ch)
+		return JSONResult(ch)
 	}
 }
 
-// tokensHandler 处理 newapi_list_tokens。
-func tokensHandler(client *newapi.Client) toolHandler {
+// TokensHandler 处理 newapi_list_tokens。
+func TokensHandler(client *newapi.Client) Handler {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		page := req.GetInt("page", 1)
 		pageSize := req.GetInt("page_size", 20)
-		res, err := client.ListTokens(ctx, page, pageSize)
+		res, err := tokens.List(ctx, client, page, pageSize)
 		if err != nil {
-			return errResult(err)
+			return ErrResult(err)
 		}
-		return jsonResult(res)
+		return JSONResult(res)
 	}
 }
 
-// logsHandler 处理 newapi_logs。
-func logsHandler(client *newapi.Client) toolHandler {
+// LogsHandler 处理 newapi_logs。
+func LogsHandler(client *newapi.Client) Handler {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		q := newapi.LogQuery{
+		q := logs.Query{
 			Page:     orDefault(req, "page", 1),
 			PageSize: orDefault(req, "page_size", 20),
 			Type:     orDefault(req, "type", 0),
@@ -119,16 +124,16 @@ func logsHandler(client *newapi.Client) toolHandler {
 		if v := req.GetInt("channel", 0); v > 0 {
 			q.Channel = v
 		}
-		res, err := client.Logs(ctx, q)
+		res, err := logs.Search(ctx, client, q)
 		if err != nil {
-			return errResult(err)
+			return ErrResult(err)
 		}
-		return jsonResult(res)
+		return JSONResult(res)
 	}
 }
 
-// usageSummaryHandler 处理 newapi_usage_summary：dashboard 按模型聚合 + 总量。
-func usageSummaryHandler(client *newapi.Client) toolHandler {
+// UsageSummaryHandler 处理 newapi_usage_summary：按模型聚合 + 总量。
+func UsageSummaryHandler(client *newapi.Client) Handler {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		days := orDefault(req, "days", 7)
 		if days <= 0 || days > 365 {
@@ -136,9 +141,9 @@ func usageSummaryHandler(client *newapi.Client) toolHandler {
 		}
 		now := time.Now().Unix()
 		start := now - int64(days)*86400
-		usage, err := client.DashboardData(ctx, start, now)
+		usage, err := logs.AggregateByModel(ctx, client, start, now)
 		if err != nil {
-			return errResult(err)
+			return ErrResult(err)
 		}
 		var totalQuota float64
 		var totalCalls, totalTokens int
@@ -158,19 +163,18 @@ func usageSummaryHandler(client *newapi.Client) toolHandler {
 			},
 			"by_model": usage,
 		}
-		return jsonResult(out)
+		return JSONResult(out)
 	}
 }
 
-// pricingHandler 处理 newapi_pricing。
-func pricingHandler(client *newapi.Client) toolHandler {
+// PricingHandler 处理 newapi_pricing。
+func PricingHandler(client *newapi.Client) Handler {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		model := req.GetString("model", "")
-		raw, err := client.Pricing(ctx, model)
+		raw, err := models.Pricing(ctx, client, model)
 		if err != nil {
-			return errResult(err)
+			return ErrResult(err)
 		}
-		return jsonResult(json.RawMessage(raw))
+		return JSONResult(json.RawMessage(raw))
 	}
 }
-

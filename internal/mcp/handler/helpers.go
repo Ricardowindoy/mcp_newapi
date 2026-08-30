@@ -1,4 +1,8 @@
-package mcp
+package handler
+
+// Package handler 是 MCP 工具层：所有 handler 实现。
+// 薄壳约定：解析参数 → 调 internal/newapi 域函数 → 统一输出。业务逻辑一律不下沉到本包。
+// 工具声明（name/tier/参数）见 ../registry.go 汇总表。
 
 import (
 	"context"
@@ -11,12 +15,10 @@ import (
 	"mcp_newapi/internal/newapi"
 )
 
-// 工具层公共助手：所有工具 handler 都应是薄壳——
-// 解析参数 → 调 newapi 域方法 → 统一输出。业务逻辑一律不下沉到本包。
+// Handler 是工具处理函数签名。
+type Handler = func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error)
 
-type toolHandler = func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error)
-
-func jsonResult(v any) (*mcp.CallToolResult, error) {
+func JSONResult(v any) (*mcp.CallToolResult, error) {
 	b, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
 		return mcp.NewToolResultError("结果编码失败: " + err.Error()), nil
@@ -24,8 +26,8 @@ func jsonResult(v any) (*mcp.CallToolResult, error) {
 	return mcp.NewToolResultText(string(b)), nil
 }
 
-// errResult 把 newapi 错误转成 MCP 工具错误结果（保留可达性信息）。
-func errResult(err error) (*mcp.CallToolResult, error) {
+// ErrResult 把 newapi 错误转成 MCP 工具错误结果（保留可达性信息）。
+func ErrResult(err error) (*mcp.CallToolResult, error) {
 	var apiErr *newapi.APIError
 	if errors.As(err, &apiErr) {
 		return mcp.NewToolResultError(fmt.Sprintf("[reachable=%v status=%d] %s", apiErr.Reachable, apiErr.StatusCode, apiErr.Message)), nil

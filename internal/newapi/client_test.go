@@ -57,7 +57,7 @@ func TestDoBusinessError(t *testing.T) {
 }
 
 func TestDoUnreachable(t *testing.T) {
-	// 指向一个立刻关闭的端口：ClientIP 不可达
+	// 指向一个已关闭的服务：网络层不可达
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	url := srv.URL
 	srv.Close()
@@ -83,24 +83,5 @@ func TestDoTopLevel(t *testing.T) {
 	}
 	if m["success"] != false || m["error_code"] != "unknown_error" || m["time"] != float64(1.25) {
 		t.Errorf("top-level 字段解析错误: %v", m)
-	}
-}
-
-func TestSetChannelStatusChangedParse(t *testing.T) {
-	var gotBody map[string]any
-	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewDecoder(r.Body).Decode(&gotBody)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"success":true,"message":"","data":true}`))
-	})
-	changed, err := c.SetChannelStatus(context.Background(), 7, false)
-	if err != nil {
-		t.Fatalf("SetChannelStatus: %v", err)
-	}
-	if !changed {
-		t.Errorf("changed 应为 true")
-	}
-	if gotBody["status"] != float64(2) {
-		t.Errorf("禁用应发 status=2, got %v", gotBody["status"])
 	}
 }

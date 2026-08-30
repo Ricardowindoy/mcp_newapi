@@ -102,25 +102,27 @@ new-api 是流行的 LLM 聚合分发网关（渠道管理、令牌分发、计�
 │ registry.go    ★对外服务汇总表（表驱动）：17 个工具的唯一声明  │
 │                （Name/Tier/描述/参数/Handler 工厂）           │
 │ server.go      装配：遍历表按 writemode 过滤注册              │
-│ tools_read.go  read 档 handler 实现：参数解析→调域方法→输出   │
-│ tools_ops.go   ops 档 handler 实现（含 confirm 校验）         │
-│ tools_admin.go admin 档 handler 实现                          │
-│ helpers.go     jsonResult/errResult/orDefault（唯一公共件）   │
+│ ── handler/ 子包（handler 实现，全部薄壳）────────────────    │
+│   read.go     read 档：参数解析→调域函数→输出                │
+│   ops.go      ops 档（含 confirm 校验）                      │
+│   admin.go    admin 档                                       │
+│   helpers.go  JSONResult/ErrResult（唯一公共件）             │
 └──────────────────────────────────────────────────────────┘
-                    ↓ 只调域方法，不含业务逻辑
-┌─ internal/newapi/（API 层·域模块自治）───────────────────┐
+                    ↓ 只调域函数，不含业务逻辑
+┌─ internal/newapi/（API 层·根=传输层，域=子包）────────────┐
 │ client.go      传输层：HTTP+鉴权+信封解包+APIError，零业务│
 │ routes.go      上游端点路径常量（★唯一耦合点）            │
-│ ── 域模块（一域一文件：DTO+方法+上游契约注释）─────────  │
-│ status.go      站点状态 + relay 探测                      │
-│ models.go      模型列表 / 定价                            │
-│ channels.go    渠道（读）                                 │
-│ channel_ops.go 渠道运维（测试/余额/启停）                 │
-│ tokens.go      令牌管理（列表/搜索/创建/删除，读写一体）  │
-│ logs.go        日志 / 统计 / dashboard 按模型聚合         │
+│ page.go        分页壳 Paged/PageResult + Itoa 工具        │
+│ consts.go      QuotaPerUnit 等业务常量                    │
 │ mask.go        密钥掩码工具                               │
+│ ── 域子包（一域一包：DTO+域函数+上游契约注释）─────────  │
+│ status/        站点状态 + relay 探测                      │
+│ models/        模型列表 / 定价                            │
+│ channels/      渠道：channel.go 读 / ops.go 运维 / admin.go 管理 │
+│ tokens/        令牌管理（列表/创建/删除，读写一体）       │
+│ logs/          日志 / 统计 / dashboard 按模型聚合         │
 └──────────────────────────────────────────────────────┘
-cmd/newapi-mcp/main.go  # 入口：读 env，装配，stdio 启动
+cmd/newapi-mcp/main.go  # 入口：--config 加载配置，装配，stdio 启动
 ```
 
 **上游更新维护映射**（高内聚低耦合的落点）：
@@ -129,8 +131,8 @@ cmd/newapi-mcp/main.go  # 入口：读 env，装配，stdio 启动
 |---|---|
 | 端点路径/方法漂移 | `routes.go` 常量 |
 | 某域响应字段变化 | 对应域文件的 DTO（raw→summary） |
-| 新增业务域 | 新域文件 + routes 常量 + registry.go 表项 + handler |
-| 新增/调整对外工具 | `registry.go` 表项（+handler 实现），server.go 不动 |
+| 新增业务域 | 新域子包 + routes 常量 + registry.go 表项 + handler |
+| 新增/调整对外工具 | `registry.go` 表项（+handler/handler 包实现），server.go 不动 |
 | 鉴权方式变化 | 仅 `client.go` |
 | 配置项变化 | 仅 `internal/config` |
 

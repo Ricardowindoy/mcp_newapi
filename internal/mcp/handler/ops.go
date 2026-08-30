@@ -1,7 +1,6 @@
-package mcp
+package handler
 
-// tools_ops.go ops 档工具（6 个，写操作）。薄壳：参数解析 → 调域方法 → 输出。
-// 需 NEWAPI_WRITEMODE=ops|admin 才注册。
+// ops.go ops 档工具 handler 实现（声明见 ../registry.go）。写操作，需 writemode=ops/admin。
 
 import (
 	"context"
@@ -9,19 +8,23 @@ import (
 	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
+
 	"mcp_newapi/internal/newapi"
+	"mcp_newapi/internal/newapi/channels"
+	"mcp_newapi/internal/newapi/tokens"
 )
 
-func testChannelHandler(client *newapi.Client) toolHandler {
+// TestChannelHandler 处理 newapi_test_channel。
+func TestChannelHandler(client *newapi.Client) Handler {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id := req.GetInt("id", 0)
 		if id <= 0 {
 			return mcp.NewToolResultError("id 必须为正整数"), nil
 		}
 		model := req.GetString("model", "")
-		tr, err := client.TestChannel(ctx, id, model)
+		tr, err := channels.Test(ctx, client, id, model)
 		if err != nil {
-			return errResult(err)
+			return ErrResult(err)
 		}
 		out := map[string]any{
 			"channel_id":   id,
@@ -37,17 +40,18 @@ func testChannelHandler(client *newapi.Client) toolHandler {
 		if model != "" {
 			out["model"] = model
 		}
-		return jsonResult(out)
+		return JSONResult(out)
 	}
 }
 
-func testAllHandler(client *newapi.Client) toolHandler {
+// TestAllHandler 处理 newapi_test_all_channels。
+func TestAllHandler(client *newapi.Client) Handler {
 	return func(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		info, err := client.TestAllChannels(ctx)
+		info, err := channels.TestAll(ctx, client)
 		if err != nil {
-			return errResult(err)
+			return ErrResult(err)
 		}
-		return jsonResult(map[string]any{
+		return JSONResult(map[string]any{
 			"triggered": true,
 			"task":      info,
 			"hint":      "异步任务已入队；稍后用 newapi_list_channels 查看各渠道 response_time/status",
@@ -55,21 +59,22 @@ func testAllHandler(client *newapi.Client) toolHandler {
 	}
 }
 
-func updateBalanceHandler(client *newapi.Client) toolHandler {
+// UpdateBalanceHandler 处理 newapi_update_channel_balance。
+func UpdateBalanceHandler(client *newapi.Client) Handler {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id := req.GetInt("id", 0)
 		if id <= 0 {
 			return mcp.NewToolResultError("id 必须为正整数"), nil
 		}
-		if err := client.UpdateChannelBalance(ctx, id); err != nil {
-			return errResult(err)
+		if err := channels.UpdateBalance(ctx, client, id); err != nil {
+			return ErrResult(err)
 		}
-		ch, err := client.GetChannel(ctx, id)
+		ch, err := channels.Get(ctx, client, id)
 		if err != nil {
-			res, _ := jsonResult(map[string]any{"channel_id": id, "refreshed": true})
+			res, _ := JSONResult(map[string]any{"channel_id": id, "refreshed": true})
 			return res, nil
 		}
-		return jsonResult(map[string]any{
+		return JSONResult(map[string]any{
 			"channel_id": id,
 			"name":       ch.Name,
 			"balance":    ch.Balance,
@@ -77,22 +82,23 @@ func updateBalanceHandler(client *newapi.Client) toolHandler {
 	}
 }
 
-func setChannelStatusHandler(client *newapi.Client) toolHandler {
+// SetChannelStatusHandler 处理 newapi_set_channel_status。
+func SetChannelStatusHandler(client *newapi.Client) Handler {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id := req.GetInt("id", 0)
 		enabled := req.GetBool("enabled", false)
 		if id <= 0 {
 			return mcp.NewToolResultError("id 必须为正整数"), nil
 		}
-		changed, err := client.SetChannelStatus(ctx, id, enabled)
+		changed, err := channels.SetStatus(ctx, client, id, enabled)
 		if err != nil {
-			return errResult(err)
+			return ErrResult(err)
 		}
 		action := "禁用"
 		if enabled {
 			action = "启用"
 		}
-		return jsonResult(map[string]any{
+		return JSONResult(map[string]any{
 			"channel_id": id,
 			"enabled":    enabled,
 			"changed":    changed,
@@ -101,7 +107,8 @@ func setChannelStatusHandler(client *newapi.Client) toolHandler {
 	}
 }
 
-func createTokenHandler(client *newapi.Client) toolHandler {
+// CreateTokenHandler 处理 newapi_create_token。
+func CreateTokenHandler(client *newapi.Client) Handler {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		name := strings.TrimSpace(req.GetString("name", ""))
 		if name == "" {
@@ -110,7 +117,7 @@ func createTokenHandler(client *newapi.Client) toolHandler {
 		if len(name) > 50 {
 			return mcp.NewToolResultError("name 长度不能超过 50"), nil
 		}
-		t := newapi.TokenCreateReq{
+		t := tokens.CreateReq{
 			Name:               name,
 			UnlimitedQuota:     req.GetBool("unlimited_quota", false),
 			RemainQuota:        int64(req.GetInt("remain_quota", 0)),
@@ -126,26 +133,27 @@ func createTokenHandler(client *newapi.Client) toolHandler {
 		if t.ModelLimits != "" && !t.ModelLimitsEnabled {
 			t.ModelLimitsEnabled = true
 		}
-		ts, err := client.CreateToken(ctx, t)
+		ts, err := tokens.Create(ctx, client, t)
 		if err != nil {
-			return errResult(err)
+			return ErrResult(err)
 		}
-		ts2 := map[string]any{
-			"id":               ts.ID,
-			"name":             ts.Name,
-			"key_masked":       ts.Key,
-			"unlimited_quota":  t.UnlimitedQuota,
-			"note":             "完整 sk- key 请在面板「令牌」页查看（本 MCP 不透出完整 key）",
+		out := map[string]any{
+			"id":              ts.ID,
+			"name":            ts.Name,
+			"key_masked":      ts.Key,
+			"unlimited_quota": t.UnlimitedQuota,
+			"note":            "完整 sk- key 请在面板「令牌」页查看（本 MCP 不透出完整 key）",
 		}
 		if !t.UnlimitedQuota {
-			ts2["remain_quota"] = t.RemainQuota
-			ts2["remain_quota_usd"] = float64(t.RemainQuota) / newapi.QuotaPerUnit
+			out["remain_quota"] = t.RemainQuota
+			out["remain_quota_usd"] = float64(t.RemainQuota) / newapi.QuotaPerUnit
 		}
-		return jsonResult(ts2)
+		return JSONResult(out)
 	}
 }
 
-func deleteTokenHandler(client *newapi.Client) toolHandler {
+// DeleteTokenHandler 处理 newapi_delete_token。
+func DeleteTokenHandler(client *newapi.Client) Handler {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id := req.GetInt("id", 0)
 		confirm := req.GetBool("confirm", false)
@@ -155,9 +163,9 @@ func deleteTokenHandler(client *newapi.Client) toolHandler {
 		if !confirm {
 			return mcp.NewToolResultError("删除不可恢复：请确认后显式传 confirm=true"), nil
 		}
-		if err := client.DeleteToken(ctx, id); err != nil {
-			return errResult(err)
+		if err := tokens.Delete(ctx, client, id); err != nil {
+			return ErrResult(err)
 		}
-		return jsonResult(map[string]any{"deleted": true, "token_id": id})
+		return JSONResult(map[string]any{"deleted": true, "token_id": id})
 	}
 }

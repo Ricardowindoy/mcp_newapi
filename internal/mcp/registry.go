@@ -10,6 +10,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 
+	"mcp_newapi/internal/mcp/handler"
 	"mcp_newapi/internal/newapi"
 )
 
@@ -27,7 +28,7 @@ type toolDef struct {
 	Name    string
 	Tier    tier
 	Options []mcp.ToolOption           // 描述 + 参数声明
-	Handler func(*newapi.Client) toolHandler // handler 工厂
+	Handler func(*newapi.Client) handler.Handler // handler 工厂（实现在 handler/ 包）
 }
 
 // toolRegistry —— 对外服务汇总表（唯一索引）。
@@ -38,14 +39,14 @@ var toolRegistry = []toolDef{
 		Options: []mcp.ToolOption{
 			mcp.WithDescription("获取 new-api 网关状态：版本、启动时间、注册开关，并探测 relay (/v1/models) 活性。无需鉴权。"),
 		},
-		Handler: statusHandler,
+		Handler: handler.StatusHandler,
 	},
 	{
 		Name: "newapi_list_models", Tier: tierRead,
 		Options: []mcp.ToolOption{
 			mcp.WithDescription("获取网关全站可用模型列表（按分组返回）。无需鉴权。"),
 		},
-		Handler: modelsHandler,
+		Handler: handler.ModelsHandler,
 	},
 	{
 		Name: "newapi_list_channels", Tier: tierRead,
@@ -55,7 +56,7 @@ var toolRegistry = []toolDef{
 			mcp.WithNumber("page_size", mcp.Description("每页条数"), mcp.DefaultNumber(20)),
 			mcp.WithNumber("status", mcp.Description("状态过滤：0=全部 1=启用 2=禁用"), mcp.DefaultNumber(0)),
 		},
-		Handler: channelsHandler,
+		Handler: handler.ChannelsHandler,
 	},
 	{
 		Name: "newapi_get_channel", Tier: tierRead,
@@ -63,7 +64,7 @@ var toolRegistry = []toolDef{
 			mcp.WithDescription("获取单个渠道详情（需管理员 PAT）。key 已掩码。"),
 			mcp.WithNumber("id", mcp.Required(), mcp.Description("渠道 ID")),
 		},
-		Handler: channelDetailHandler,
+		Handler: handler.ChannelDetailHandler,
 	},
 	{
 		Name: "newapi_list_tokens", Tier: tierRead,
@@ -72,7 +73,7 @@ var toolRegistry = []toolDef{
 			mcp.WithNumber("page", mcp.Description("页码，从 1 开始"), mcp.DefaultNumber(1)),
 			mcp.WithNumber("page_size", mcp.Description("每页条数"), mcp.DefaultNumber(20)),
 		},
-		Handler: tokensHandler,
+		Handler: handler.TokensHandler,
 	},
 	{
 		Name: "newapi_logs", Tier: tierRead,
@@ -87,7 +88,7 @@ var toolRegistry = []toolDef{
 			mcp.WithString("token_name", mcp.Description("按令牌名过滤")),
 			mcp.WithNumber("channel", mcp.Description("按渠道 ID 过滤")),
 		},
-		Handler: logsHandler,
+		Handler: handler.LogsHandler,
 	},
 	{
 		Name: "newapi_usage_summary", Tier: tierRead,
@@ -95,7 +96,7 @@ var toolRegistry = []toolDef{
 			mcp.WithDescription("近 N 天用量汇总：按模型聚合的调用次数/tokens/消费额（quota 及美元，500000 quota=$1）。"),
 			mcp.WithNumber("days", mcp.Description("统计天数，默认 7，最大 365"), mcp.DefaultNumber(7)),
 		},
-		Handler: usageSummaryHandler,
+		Handler: handler.UsageSummaryHandler,
 	},
 	{
 		Name: "newapi_pricing", Tier: tierRead,
@@ -103,7 +104,7 @@ var toolRegistry = []toolDef{
 			mcp.WithDescription("获取模型倍率定价（注意：实例可能禁用此端点，报错即禁用）。"),
 			mcp.WithString("model", mcp.Description("按模型名过滤")),
 		},
-		Handler: pricingHandler,
+		Handler: handler.PricingHandler,
 	},
 
 	// ============ ops 档（6） ============
@@ -114,14 +115,14 @@ var toolRegistry = []toolDef{
 			mcp.WithNumber("id", mcp.Required(), mcp.Description("渠道 ID")),
 			mcp.WithString("model", mcp.Description("测试用的模型名；缺省用渠道默认测试模型")),
 		},
-		Handler: testChannelHandler,
+		Handler: handler.TestChannelHandler,
 	},
 	{
 		Name: "newapi_test_all_channels", Tier: tierOps,
 		Options: []mcp.ToolOption{
 			mcp.WithDescription("触发全量渠道测试（异步系统任务），返回 task_id。结果可在面板任务中心或稍后用 newapi_list_channels 观察响应时间/状态。"),
 		},
-		Handler: testAllHandler,
+		Handler: handler.TestAllHandler,
 	},
 	{
 		Name: "newapi_update_channel_balance", Tier: tierOps,
@@ -129,7 +130,7 @@ var toolRegistry = []toolDef{
 			mcp.WithDescription("刷新单个渠道的余额（部分渠道类型不支持，会返回业务错误）。"),
 			mcp.WithNumber("id", mcp.Required(), mcp.Description("渠道 ID")),
 		},
-		Handler: updateBalanceHandler,
+		Handler: handler.UpdateBalanceHandler,
 	},
 	{
 		Name: "newapi_set_channel_status", Tier: tierOps,
@@ -138,7 +139,7 @@ var toolRegistry = []toolDef{
 			mcp.WithNumber("id", mcp.Required(), mcp.Description("渠道 ID")),
 			mcp.WithBoolean("enabled", mcp.Required(), mcp.Description("true=启用 false=禁用")),
 		},
-		Handler: setChannelStatusHandler,
+		Handler: handler.SetChannelStatusHandler,
 	},
 	{
 		Name: "newapi_create_token", Tier: tierOps,
@@ -151,7 +152,7 @@ var toolRegistry = []toolDef{
 			mcp.WithString("model_limits", mcp.Description("模型限制，逗号分隔模型名")),
 			mcp.WithString("group", mcp.Description("分组，缺省 default")),
 		},
-		Handler: createTokenHandler,
+		Handler: handler.CreateTokenHandler,
 	},
 	{
 		Name: "newapi_delete_token", Tier: tierOps,
@@ -160,7 +161,7 @@ var toolRegistry = []toolDef{
 			mcp.WithNumber("id", mcp.Required(), mcp.Description("令牌 ID")),
 			mcp.WithBoolean("confirm", mcp.Required(), mcp.Description("必须为 true 才执行删除")),
 		},
-		Handler: deleteTokenHandler,
+		Handler: handler.DeleteTokenHandler,
 	},
 
 	// ============ admin 档（3） ============
@@ -179,7 +180,7 @@ var toolRegistry = []toolDef{
 			mcp.WithNumber("weight", mcp.Description("权重")),
 			mcp.WithString("test_model", mcp.Description("测试模型名")),
 		},
-		Handler: createChannelHandler,
+		Handler: handler.CreateChannelHandler,
 	},
 	{
 		Name: "newapi_update_channel", Tier: tierAdmin,
@@ -197,7 +198,7 @@ var toolRegistry = []toolDef{
 			mcp.WithString("test_model", mcp.Description("测试模型名")),
 			mcp.WithNumber("type", mcp.Description("渠道类型")),
 		},
-		Handler: updateChannelHandler,
+		Handler: handler.UpdateChannelHandler,
 	},
 	{
 		Name: "newapi_delete_channel", Tier: tierAdmin,
@@ -206,7 +207,7 @@ var toolRegistry = []toolDef{
 			mcp.WithNumber("id", mcp.Required(), mcp.Description("渠道 ID")),
 			mcp.WithBoolean("confirm", mcp.Required(), mcp.Description("必须为 true 才执行删除")),
 		},
-		Handler: deleteChannelHandler,
+		Handler: handler.DeleteChannelHandler,
 	},
 }
 
