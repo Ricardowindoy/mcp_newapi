@@ -24,8 +24,8 @@ func TestRegistryIntegrity(t *testing.T) {
 			t.Errorf("%s: 缺少声明（描述/参数）", def.Name)
 		}
 	}
-	if len(toolRegistry) != 17 {
-		t.Errorf("工具总数 = %d, want 17", len(toolRegistry))
+	if len(toolRegistry) != 23 {
+		t.Errorf("工具总数 = %d, want 23", len(toolRegistry))
 	}
 }
 
@@ -33,16 +33,16 @@ func TestRegistryIntegrity(t *testing.T) {
 func TestTierFiltering(t *testing.T) {
 	client := newapi.NewClient("https://unused.example", "", 0)
 	count := func(mode string) int {
-		s := NewServer(client, mode)
+		s := NewServer(client, mode, nil)
 		return len(s.ListTools())
 	}
-	if got := count("read"); got != 8 {
-		t.Errorf("read 档 = %d, want 8", got)
+	if got := count("read"); got != 11 {
+		t.Errorf("read 档 = %d, want 11", got)
 	}
-	if got := count("ops"); got != 14 {
-		t.Errorf("ops 档 = %d, want 14", got)
+	if got := count("ops"); got != 17 {
+		t.Errorf("ops 档 = %d, want 17", got)
 	}
-	if got := count("admin"); got != 17 {
-		t.Errorf("admin 档 = %d, want 17", got)
+	if got := count("admin"); got != 23 {
+		t.Errorf("admin 档 = %d, want 23", got)
 	}
 }

@@ -11,11 +11,12 @@ import (
 
 	"mcp_newapi/internal/newapi"
 	"mcp_newapi/internal/newapi/channels"
+	"mcp_newapi/internal/reporter"
 	"mcp_newapi/internal/newapi/tokens"
 )
 
 // TestChannelHandler 处理 newapi_test_channel。
-func TestChannelHandler(client *newapi.Client) Handler {
+func TestChannelHandler(client *newapi.Client, rep *reporter.Store) Handler {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id := req.GetInt("id", 0)
 		if id <= 0 {
@@ -45,7 +46,7 @@ func TestChannelHandler(client *newapi.Client) Handler {
 }
 
 // TestAllHandler 处理 newapi_test_all_channels。
-func TestAllHandler(client *newapi.Client) Handler {
+func TestAllHandler(client *newapi.Client, rep *reporter.Store) Handler {
 	return func(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		info, err := channels.TestAll(ctx, client)
 		if err != nil {
@@ -60,7 +61,7 @@ func TestAllHandler(client *newapi.Client) Handler {
 }
 
 // UpdateBalanceHandler 处理 newapi_update_channel_balance。
-func UpdateBalanceHandler(client *newapi.Client) Handler {
+func UpdateBalanceHandler(client *newapi.Client, rep *reporter.Store) Handler {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id := req.GetInt("id", 0)
 		if id <= 0 {
@@ -83,7 +84,7 @@ func UpdateBalanceHandler(client *newapi.Client) Handler {
 }
 
 // SetChannelStatusHandler 处理 newapi_set_channel_status。
-func SetChannelStatusHandler(client *newapi.Client) Handler {
+func SetChannelStatusHandler(client *newapi.Client, rep *reporter.Store) Handler {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id := req.GetInt("id", 0)
 		enabled := req.GetBool("enabled", false)
@@ -108,7 +109,7 @@ func SetChannelStatusHandler(client *newapi.Client) Handler {
 }
 
 // CreateTokenHandler 处理 newapi_create_token。
-func CreateTokenHandler(client *newapi.Client) Handler {
+func CreateTokenHandler(client *newapi.Client, rep *reporter.Store) Handler {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		name := strings.TrimSpace(req.GetString("name", ""))
 		if name == "" {
@@ -153,7 +154,7 @@ func CreateTokenHandler(client *newapi.Client) Handler {
 }
 
 // DeleteTokenHandler 处理 newapi_delete_token。
-func DeleteTokenHandler(client *newapi.Client) Handler {
+func DeleteTokenHandler(client *newapi.Client, rep *reporter.Store) Handler {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id := req.GetInt("id", 0)
 		confirm := req.GetBool("confirm", false)

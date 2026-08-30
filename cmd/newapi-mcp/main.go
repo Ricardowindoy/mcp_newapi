@@ -17,6 +17,7 @@ import (
 	"mcp_newapi/internal/config"
 	"mcp_newapi/internal/mcp"
 	"mcp_newapi/internal/newapi"
+	"mcp_newapi/internal/reporter"
 )
 
 func main() {
@@ -34,7 +35,9 @@ func main() {
 		cfg.NewAPI.Token,
 		time.Duration(cfg.NewAPI.TimeoutSec)*time.Second,
 	)
-	s := mcp.NewServer(client, cfg.NewAPI.WriteMode)
+	// 报表从库：DSN 未配置时 rep 为 nil，报表工具仍注册、调用时报配置不足错误
+	rep := reporter.Open(cfg.ReportDSN())
+	s := mcp.NewServer(client, cfg.NewAPI.WriteMode, rep)
 
 	stdioServer := server.NewStdioServer(s)
 	stdioServer.SetErrorLogger(log.New(os.Stderr, "", log.LstdFlags))

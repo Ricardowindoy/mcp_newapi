@@ -6,6 +6,8 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"math"
 	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -14,12 +16,14 @@ import (
 	"mcp_newapi/internal/newapi/channels"
 	"mcp_newapi/internal/newapi/logs"
 	"mcp_newapi/internal/newapi/models"
+	"mcp_newapi/internal/newapi/options"
+	"mcp_newapi/internal/reporter"
 	"mcp_newapi/internal/newapi/status"
 	"mcp_newapi/internal/newapi/tokens"
 )
 
 // StatusHandler 处理 newapi_status。
-func StatusHandler(client *newapi.Client) Handler {
+func StatusHandler(client *newapi.Client, rep *reporter.Store) Handler {
 	return func(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		st, err := status.Get(ctx, client)
 		if err != nil {
@@ -45,7 +49,7 @@ func StatusHandler(client *newapi.Client) Handler {
 }
 
 // ModelsHandler 处理 newapi_list_models。
-func ModelsHandler(client *newapi.Client) Handler {
+func ModelsHandler(client *newapi.Client, rep *reporter.Store) Handler {
 	return func(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		m, err := models.List(ctx, client)
 		if err != nil {
@@ -64,7 +68,7 @@ func ModelsHandler(client *newapi.Client) Handler {
 }
 
 // ChannelsHandler 处理 newapi_list_channels。
-func ChannelsHandler(client *newapi.Client) Handler {
+func ChannelsHandler(client *newapi.Client, rep *reporter.Store) Handler {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		page := req.GetInt("page", 1)
 		pageSize := req.GetInt("page_size", 20)
@@ -78,7 +82,7 @@ func ChannelsHandler(client *newapi.Client) Handler {
 }
 
 // ChannelDetailHandler 处理 newapi_get_channel。
-func ChannelDetailHandler(client *newapi.Client) Handler {
+func ChannelDetailHandler(client *newapi.Client, rep *reporter.Store) Handler {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
@@ -93,7 +97,7 @@ func ChannelDetailHandler(client *newapi.Client) Handler {
 }
 
 // TokensHandler 处理 newapi_list_tokens。
-func TokensHandler(client *newapi.Client) Handler {
+func TokensHandler(client *newapi.Client, rep *reporter.Store) Handler {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		page := req.GetInt("page", 1)
 		pageSize := req.GetInt("page_size", 20)
@@ -106,7 +110,7 @@ func TokensHandler(client *newapi.Client) Handler {
 }
 
 // LogsHandler 处理 newapi_logs。
-func LogsHandler(client *newapi.Client) Handler {
+func LogsHandler(client *newapi.Client, rep *reporter.Store) Handler {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		q := logs.Query{
 			Page:     orDefault(req, "page", 1),
@@ -133,7 +137,7 @@ func LogsHandler(client *newapi.Client) Handler {
 }
 
 // UsageSummaryHandler 处理 newapi_usage_summary：按模型聚合 + 总量。
-func UsageSummaryHandler(client *newapi.Client) Handler {
+func UsageSummaryHandler(client *newapi.Client, rep *reporter.Store) Handler {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		days := orDefault(req, "days", 7)
 		if days <= 0 || days > 365 {
@@ -168,7 +172,7 @@ func UsageSummaryHandler(client *newapi.Client) Handler {
 }
 
 // PricingHandler 处理 newapi_pricing。
-func PricingHandler(client *newapi.Client) Handler {
+func PricingHandler(client *newapi.Client, rep *reporter.Store) Handler {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		model := req.GetString("model", "")
 		raw, err := models.Pricing(ctx, client, model)
@@ -176,5 +180,74 @@ func PricingHandler(client *newapi.Client) Handler {
 			return ErrResult(err)
 		}
 		return JSONResult(json.RawMessage(raw))
+	}
+}
+
+// ListOptionsHandler 处理 newapi_list_options。
+func ListOptionsHandler(client *newapi.Client, rep *reporter.Store) Handler {
+	return func(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		entries, err := options.List(ctx, client)
+		if err != nil {
+			return ErrResult(err)
+		}
+		return JSONResult(map[string]any{
+			"count":   len(entries),
+			"options": entries,
+		})
+	}
+}
+
+// SuccessRateHandler 处理 newapi_success_rate。
+func SuccessRateHandler(client *newapi.Client, rep *reporter.Store) Handler {
+	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		startTs := req.GetInt("start_timestamp", 0)
+		endTs := req.GetInt("end_timestamp", 0)
+		hours := req.GetInt("hours", 24)
+		if hours <= 0 || hours > 720 {
+			hours = 24
+		}
+		if startTs <= 0 || endTs <= 0 {
+			endTs = int(time.Now().Unix())
+			startTs = endTs - hours*3600
+		}
+		q := logs.Query{
+			StartTimestamp: int64(startTs),
+			EndTimestamp:   int64(endTs),
+			Channel:        req.GetInt("channel", 0),
+			ModelName:      req.GetString("model_name", ""),
+			TokenName:      req.GetString("token_name", ""),
+		}
+		successQ, errQ := q, q
+		successQ.Type, errQ.Type = 2, 5
+		success, err := logs.Count(ctx, client, successQ)
+		if err != nil {
+			return ErrResult(err)
+		}
+		fail, err := logs.Count(ctx, client, errQ)
+		if err != nil {
+			return ErrResult(err)
+		}
+		total := success + fail
+		out := map[string]any{
+			"window":        map[string]any{"start": startTs, "end": endTs},
+			"success_count": success,
+			"error_count":   fail,
+			"total":         total,
+			"filters": map[string]any{
+				"channel":    q.Channel,
+				"model_name": q.ModelName,
+				"token_name": q.TokenName,
+			},
+			"note": "基于日志条目计数（type=2 消费 vs type=5 错误）；上游重试会产生多条错误日志，比率为近似值",
+		}
+		if total == 0 {
+			out["success_rate"] = nil
+			out["note"] = "时间窗内无匹配日志"
+		} else {
+			rate := float64(success) / float64(total)
+			out["success_rate"] = math.Round(rate*10000) / 10000
+			out["success_rate_pct"] = fmt.Sprintf("%.2f%%", rate*100)
+		}
+		return JSONResult(out)
 	}
 }

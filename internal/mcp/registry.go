@@ -12,6 +12,7 @@ import (
 
 	"mcp_newapi/internal/mcp/handler"
 	"mcp_newapi/internal/newapi"
+	"mcp_newapi/internal/reporter"
 )
 
 // tier 工具档位（与 config 的 writemode 对应）。
@@ -27,13 +28,13 @@ const (
 type toolDef struct {
 	Name    string
 	Tier    tier
-	Options []mcp.ToolOption           // 描述 + 参数声明
-	Handler func(*newapi.Client) handler.Handler // handler 工厂（实现在 handler/ 包）
+	Options []mcp.ToolOption // 描述 + 参数声明
+	Handler func(*newapi.Client, *reporter.Store) handler.Handler // handler 工厂（实现在 handler/ 包）
 }
 
 // toolRegistry —— 对外服务汇总表（唯一索引）。
 var toolRegistry = []toolDef{
-	// ============ read 档（8） ============
+	// ============ read 档（11） ============
 	{
 		Name: "newapi_status", Tier: tierRead,
 		Options: []mcp.ToolOption{
@@ -106,6 +107,35 @@ var toolRegistry = []toolDef{
 		},
 		Handler: handler.PricingHandler,
 	},
+	{
+		Name: "newapi_list_options", Tier: tierRead,
+		Options: []mcp.ToolOption{
+			mcp.WithDescription("列出 new-api 系统设置 option（需管理员 PAT）：键值对，按 key 排序。上游已过滤敏感键（*Token/*Secret/*Key 等后缀）。用于查 autoban 开关（AutomaticDisableChannelEnabled）、禁用状态码（AutomaticDisableStatusCodes）、禁用关键词（AutomaticDisableKeywords）等运营配置当前值。"),
+		},
+		Handler: handler.ListOptionsHandler,
+	},
+	{
+		Name: "newapi_success_rate", Tier: tierRead,
+		Options: []mcp.ToolOption{
+			mcp.WithDescription("查询请求成功率（基于日志数据：type=2 消费条目 vs type=5 错误条目的 total 计数）。时间窗默认近 24h（hours 1-720，或显式传起止时间戳）；可按渠道/模型/令牌过滤。上游重试会产生多条错误日志，比率为近似值。"),
+			mcp.WithNumber("hours", mcp.Description("统计窗口小时数，默认 24（1-720）；传了起止时间戳则忽略"), mcp.DefaultNumber(24)),
+			mcp.WithNumber("start_timestamp", mcp.Description("起始 Unix 时间戳（秒），与 end_timestamp 成对使用")),
+			mcp.WithNumber("end_timestamp", mcp.Description("结束 Unix 时间戳（秒）")),
+			mcp.WithNumber("channel", mcp.Description("按渠道 ID 过滤")),
+			mcp.WithString("model_name", mcp.Description("按模型过滤")),
+			mcp.WithString("token_name", mcp.Description("按令牌名过滤")),
+		},
+		Handler: handler.SuccessRateHandler,
+	},
+	{
+		Name: "newapi_jiyuan_report", Tier: tierRead,
+		Options: []mcp.ToolOption{
+			mcp.WithDescription("基元渠道消费报表（默认区间=今天+前3天）：从报表从库聚合 logs 与 model_price_snapshots 每模型最近价格快照。tokens 只计成功请求(type=2)；消费=(Prompt−缓存)/1M×输入价+缓存/1M×缓存价+Completion/1M×输出价；计费模型用 other.upstream_model_name(映射后)回退 model_name；缺价模型按 0 计并列出。返回渠道汇总/按模型/渠道×模型明细/每日趋势/合计。需配置 [report] 报表库（未配置时调用报错）。"),
+			mcp.WithString("name_like", mcp.Description("渠道名过滤关键词（LIKE 模糊匹配），缺省 基元")),
+			mcp.WithNumber("days", mcp.Description("统计天数（含今天），默认 4，1-30"), mcp.DefaultNumber(4)),
+		},
+		Handler: handler.JiyuanReportHandler,
+	},
 
 	// ============ ops 档（6） ============
 	{
@@ -164,7 +194,7 @@ var toolRegistry = []toolDef{
 		Handler: handler.DeleteTokenHandler,
 	},
 
-	// ============ admin 档（3） ============
+	// ============ admin 档（6） ============
 	{
 		Name: "newapi_create_channel", Tier: tierAdmin,
 		Options: []mcp.ToolOption{
@@ -196,6 +226,8 @@ var toolRegistry = []toolDef{
 			mcp.WithNumber("priority", mcp.Description("优先级")),
 			mcp.WithNumber("weight", mcp.Description("权重")),
 			mcp.WithString("test_model", mcp.Description("测试模型名")),
+			mcp.WithBoolean("auto_ban", mcp.Description("渠道级自动禁用开关；true=该渠道失败可被自动禁用（上游 auto_ban=1），false=关闭。缺省不修改")),
+			mcp.WithString("tag", mcp.Description("渠道标签；传空串清除，缺省不修改")),
 			mcp.WithNumber("type", mcp.Description("渠道类型")),
 		},
 		Handler: handler.UpdateChannelHandler,
@@ -209,10 +241,48 @@ var toolRegistry = []toolDef{
 		},
 		Handler: handler.DeleteChannelHandler,
 	},
+	{
+		Name: "newapi_update_option", Tier: tierAdmin,
+		Options: []mcp.ToolOption{
+			mcp.WithDescription("修改 new-api 系统设置 option（admin，危险操作：全局生效、key 不做白名单校验，误改影响整个网关）。必须显式传 confirm=true。值均为字符串：布尔传 \"true\"/\"false\"，数字传字符串（如阈值 \"20\"、状态码 \"401,402,429\"）。"),
+			mcp.WithString("key", mcp.Required(), mcp.Description("option 键名（先用 newapi_list_options 查现有键，勿凭记忆造键）")),
+			mcp.WithString("value", mcp.Required(), mcp.Description("新值（字符串形态）")),
+			mcp.WithBoolean("confirm", mcp.Required(), mcp.Description("必须为 true 才执行修改")),
+		},
+		Handler: handler.UpdateOptionHandler,
+	},
+	{
+		Name: "newapi_autoban_codes", Tier: tierAdmin,
+		Options: []mcp.ToolOption{
+			mcp.WithDescription("autoban 状态码的增删查改（写 AutomaticDisableStatusCodes / AutomaticRetryStatusCodes，保留其余配置）。action=list 查询现值；add=追加（自动排序合并相邻区间、跳过已覆盖项）；remove=移除（必要时拆分包含它的区间，未覆盖项报 not_found）；set=全量重写为规范形。target=disable(默认)|retry。codes 逗号分隔 token：单码或区间，如 402,400-499（范围 100-599）。变更项需 confirm=true。"),
+			mcp.WithString("action", mcp.Description("list|add|remove|set，缺省 list")),
+			mcp.WithString("target", mcp.Description("disable(自动禁用，默认)|retry(自动重试)")),
+			mcp.WithString("codes", mcp.Description("状态码 token，逗号分隔（add/remove/set 必填）")),
+			mcp.WithBoolean("confirm", mcp.Description("变更项必须为 true")),
+		},
+		Handler: handler.AutobanCodesHandler,
+	},
+	{
+		Name: "newapi_tag_channels", Tier: tierAdmin,
+		Options: []mcp.ToolOption{
+			mcp.WithDescription("按标签批量操作渠道（admin，影响该 tag 下所有渠道）。action=edit 批量改字段（new_tag/priority/weight/models/model_mapping/group，至少一项）；enable/disable 批量启停。必须显式传 confirm=true。单渠道打标签/清标签用 newapi_update_channel 的 tag 字段。"),
+			mcp.WithString("action", mcp.Required(), mcp.Description("edit|enable|disable")),
+			mcp.WithString("tag", mcp.Required(), mcp.Description("目标标签")),
+			mcp.WithString("new_tag", mcp.Description("edit：重命名标签（不能为空）")),
+			mcp.WithNumber("priority", mcp.Description("edit：批量改优先级")),
+			mcp.WithNumber("weight", mcp.Description("edit：批量改权重")),
+			mcp.WithString("models", mcp.Description("edit：批量改模型列表，逗号分隔")),
+			mcp.WithString("model_mapping", mcp.Description("edit：批量改模型重定向 JSON")),
+			mcp.WithString("group", mcp.Description("edit：批量改分组，逗号分隔")),
+			mcp.WithBoolean("confirm", mcp.Required(), mcp.Description("必须为 true 才执行")),
+		},
+		Handler: handler.TagChannelsHandler,
+	},
 }
 
 // registerTools 表驱动注册：按 writemode 决定注册到哪一档（低档不含高档工具）。
-func registerTools(s *server.MCPServer, client *newapi.Client, writemode string) {
+// rep 是报表从库连接（entry 从 config 注入；nil=报表未配置，工具仍注册、调用时报配置错误）。
+func registerTools(s *server.MCPServer, client *newapi.Client, writemode string, rep *reporter.Store) {
 	max := tierRead
 	switch writemode {
 	case "admin":
@@ -220,13 +290,11 @@ func registerTools(s *server.MCPServer, client *newapi.Client, writemode string)
 	case "ops":
 		max = tierOps
 	}
-	registered := 0
 	for i := range toolRegistry {
 		def := &toolRegistry[i]
 		if def.Tier > max {
 			continue
 		}
-		s.AddTool(mcp.NewTool(def.Name, def.Options...), def.Handler(client))
-		registered++
+		s.AddTool(mcp.NewTool(def.Name, def.Options...), def.Handler(client, rep))
 	}
 }

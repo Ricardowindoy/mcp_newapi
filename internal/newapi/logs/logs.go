@@ -79,6 +79,16 @@ func Search(ctx context.Context, c *newapi.Client, q Query) (*newapi.PageResult[
 	}, nil
 }
 
+// Count 统计满足条件的日志条数（只取分页 total，不拉条目）。
+func Count(ctx context.Context, c *newapi.Client, q Query) (int, error) {
+	q.Page, q.PageSize = 1, 1
+	r, err := Search(ctx, c, q)
+	if err != nil {
+		return 0, err
+	}
+	return r.Total, nil
+}
+
 // StatWindow 拉取时间窗内的总量统计。
 func StatWindow(ctx context.Context, c *newapi.Client, start, end int64) (*Stat, error) {
 	v := url.Values{}

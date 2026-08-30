@@ -22,6 +22,28 @@ const (
 // Config 是根配置。
 type Config struct {
 	NewAPI NewAPIConfig `toml:"newapi"`
+	Report ReportConfig `toml:"report"`
+}
+
+// ReportConfig 是报表从库配置（密钥经 db_dsn_file 间接引用，避免落配置文件本体）。
+type ReportConfig struct {
+	DBDSN     string `toml:"db_dsn"`      // 直连 DSN（user:pass@tcp(host:port)/db?charset=utf8mb4）
+	DBDSNFile string `toml:"db_dsn_file"` // DSN 文件路径（读首行，0600；推荐）
+}
+
+// ReportDSN 解析报表库 DSN：env NEWAPI_REPORT_DB_DSN > db_dsn > db_dsn_file（首行）。空串=未配置。
+func (c *Config) ReportDSN() string {
+	if c.Report.DBDSN != "" {
+		return strings.TrimSpace(c.Report.DBDSN)
+	}
+	if c.Report.DBDSNFile != "" {
+		b, err := os.ReadFile(c.Report.DBDSNFile)
+		if err != nil {
+			return ""
+		}
+		return strings.TrimSpace(strings.SplitN(string(b), "\n", 2)[0])
+	}
+	return ""
 }
 
 // NewAPIConfig 是 new-api 网关连接与行为配置。
@@ -76,6 +98,9 @@ func (c *Config) applyEnv() {
 		if sec, err := strconv.Atoi(v); err == nil && sec > 0 {
 			c.NewAPI.TimeoutSec = sec
 		}
+	}
+	if v := os.Getenv("NEWAPI_REPORT_DB_DSN"); v != "" {
+		c.Report.DBDSN = strings.TrimSpace(v)
 	}
 }
 

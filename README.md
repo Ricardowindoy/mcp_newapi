@@ -4,7 +4,7 @@
 
 ## 特性
 
-- **17 个工具，三档权限**（`NEWAPI_WRITEMODE`：`read` 8 个 / `ops` +6 / `admin` +3），低档不注册写工具
+- **23 个工具，三档权限**（`NEWAPI_WRITEMODE`：`read` 11 个 / `ops` +6 / `admin` +6），低档不注册写工具
 - **Go 单二进制**，mcp-go + stdio 传输，无运行时依赖
 - **密钥安全**：任何响应不透出完整 key（掩码头尾 4 位）；删除操作强制 `confirm=true`
 - **上游解耦**：端点路径集中在 `internal/newapi/routes.go`，域模块一域一文件，上游更新只动对应文件（见 DESIGN.md §5 维护映射表）
@@ -33,19 +33,26 @@ export NEWAPI_WRITEMODE=ops            # read(默认)/ops/admin
 | read | `newapi_logs` | 消费/错误日志检索 |
 | read | `newapi_usage_summary` | 近 N 天按模型聚合用量（$ 换算） |
 | read | `newapi_pricing` | 模型倍率（实例可能禁用） |
+| read | `newapi_list_options` | 系统设置键值对（上游已脱敏） |
+| read | `newapi_success_rate` | 请求成功率（日志 type=2/5 计数，支持渠道/模型/令牌过滤） |
+| read | `newapi_jiyuan_report` | 基元渠道消费报表（从库 logs×价格快照聚合，需 [report] 配置） |
 | ops | `newapi_test_channel` / `newapi_test_all_channels` | 单渠道/全量测试 |
 | ops | `newapi_update_channel_balance` | 刷新渠道余额 |
 | ops | `newapi_set_channel_status` | 启用/禁用渠道 |
 | ops | `newapi_create_token` / `newapi_delete_token` | 令牌生命周期 |
-| admin | `newapi_create_channel` / `newapi_update_channel` / `newapi_delete_channel` | 渠道 CRUD |
+| admin | `newapi_create_channel` / `newapi_update_channel` / `newapi_delete_channel` | 渠道 CRUD（update_channel 含 tag/auto_ban PATCH） |
+| admin | `newapi_update_option` | 系统设置修改（confirm 门禁） |
+| admin | `newapi_autoban_codes` | autoban 状态码增删查改（disable/retry，区间代数） |
+| admin | `newapi_tag_channels` | 按标签批量编辑/启停渠道 |
 
 ## 架构（分层 + 域子包，单向依赖）
 
 ```
 internal/config/   配置模块（TOML：默认 < 文件 < 环境变量，token_file 间接引用）
-internal/mcp/      工具层：registry.go 表驱动汇总表（17 工具唯一索引）+ handler/ 子包
+internal/mcp/      工具层：registry.go 表驱动汇总表（23 工具唯一索引）+ handler/ 子包
 internal/newapi/   API 层：client.go 传输 + routes.go 端点耦合点
-  └─ 域子包：status/ models/ channels/(读+运维+管理) tokens/ logs/
+  └─ 域子包：status/ models/ channels/(读+运维+管理+标签) tokens/ logs/ options/(系统设置+状态码代数)
+internal/reporter/ 报表域：直连从库聚合消费报表（叶子包，DSN 经 config 注入）
 ```
 
 设计细节与上游契约注释见 [DESIGN.md](DESIGN.md)。

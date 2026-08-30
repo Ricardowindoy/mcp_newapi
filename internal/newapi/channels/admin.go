@@ -11,6 +11,7 @@ package channels
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"mcp_newapi/internal/newapi"
@@ -65,6 +66,40 @@ func UpdateFields(ctx context.Context, c *newapi.Client, id int, fields map[stri
 	}
 	_, err := c.Do(ctx, "PUT", newapi.RouteChannels, nil, body)
 	return err
+}
+
+// TagReq 按 tag 批量编辑渠道（上游 controller/channel.go ChannelTag 的裁剪版，
+// 不含 param_override/header_override 敏感项）。指针字段 nil=不改。
+type TagReq struct {
+	Tag          string  `json:"tag"`
+	NewTag       *string `json:"new_tag,omitempty"`
+	Priority     *int64  `json:"priority,omitempty"`
+	Weight       *uint   `json:"weight,omitempty"`
+	ModelMapping *string `json:"model_mapping,omitempty"`
+	Models       *string `json:"models,omitempty"`
+	Groups       *string `json:"groups,omitempty"`
+}
+
+// EditByTag 批量编辑同 tag 渠道（PUT /api/channel/tag，上游 EditTagChannels）。
+func EditByTag(ctx context.Context, c *newapi.Client, req TagReq) (json.RawMessage, error) {
+	data, err := c.Do(ctx, "PUT", newapi.RouteChannelTag, nil, req)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+// SetTagStatus 按 tag 批量启停（POST /api/channel/tag/enabled|disabled）。
+func SetTagStatus(ctx context.Context, c *newapi.Client, tag string, enabled bool) (json.RawMessage, error) {
+	path := newapi.RouteChannelTagEnable
+	if !enabled {
+		path = newapi.RouteChannelTagDisable
+	}
+	data, err := c.Do(ctx, "POST", path, nil, map[string]any{"tag": tag})
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 // Delete 删除渠道。
