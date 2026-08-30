@@ -55,10 +55,10 @@ db_dsn = ""                                   # 不推荐明文
 db_dsn_file = "/home/radxa/.dsh/report-db.dsn"
 ```
 
-占位模板见仓库根目录 [`newapi-mcp.example.toml`](../newapi-mcp.example.toml)。
+占位模板见仓库根目录 [`newapi-mcp.example.toml`](../../newapi-mcp.example.toml)。
 
 ## 安全要点
 
 - PAT / DSN 永不写进配置文件本体，用 `token_file` / `db_dsn_file` 间接引用，文件 `0600`
 - 任何 MCP 响应不透出完整 key（掩码头尾各 4 位）；完整 key 只在创建/更新请求中由调用方显式传入
-- 生产部署示例（systemd/wrapper）见 [`examples/`](../examples/)
+- 生产部署示例（systemd/wrapper）见 [`examples/`](../../examples/)

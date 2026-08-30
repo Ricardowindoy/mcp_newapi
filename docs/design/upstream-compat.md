@@ -52,4 +52,4 @@ new-api 迭代快，本项目按「**唯一耦合点**」策略适配：所有�
 | 配置项变化 | 仅 `internal/config` |
 | 报表口径/SQL 变化 | 仅 `internal/reporter` |
 
-更多设计细节见 [DESIGN.md](../DESIGN.md)；模块级实现文档见 [.docs/](../.docs/README.md)。
+更多设计细节见 [DESIGN.md](DESIGN.md)；模块级实现文档见 [.docs/](../../.docs/README.md)。

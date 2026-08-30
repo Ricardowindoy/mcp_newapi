@@ -52,4 +52,4 @@ new-api iterates fast; this project adapts with a "**single coupling point**" st
 | Config item change | Only `internal/config` |
 | Report methodology/SQL change | Only `internal/reporter` |
 
-For more design details see [DESIGN.md](../DESIGN.md); for per-module implementation docs see [.docs/](../.docs/README.md).
+For more design details see [DESIGN.md](DESIGN.md); for per-module implementation docs see [.docs/](../../.docs/README.md).

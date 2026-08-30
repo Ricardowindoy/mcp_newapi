@@ -21,7 +21,7 @@ newapi-mcp is an **MCP server over stdio transport**; any client that supports s
 }
 ```
 
-A complete ready-to-copy file: [`examples/claude-desktop-config.json`](../examples/claude-desktop-config.json).
+A complete ready-to-copy file: [`examples/claude-desktop-config.json`](../../examples/claude-desktop-config.json).
 
 ## DSH (DeepSeek Harness)
 
@@ -37,7 +37,7 @@ mcp-newapi:
     args: []
 ```
 
-The wrapper and the snippet can be copied directly: [`examples/newapi-mcp-wrapper.sh`](../examples/newapi-mcp-wrapper.sh), [`examples/cordis-patch.yml`](../examples/cordis-patch.yml). After changing the wrapper / binary / cordis.patch.yml, a **DSH restart** is required for the change to take effect.
+The wrapper and the snippet can be copied directly: [`examples/newapi-mcp-wrapper.sh`](../../examples/newapi-mcp-wrapper.sh), [`examples/cordis-patch.yml`](../../examples/cordis-patch.yml). After changing the wrapper / binary / cordis.patch.yml, a **DSH restart** is required for the change to take effect.
 
 ## Choosing a Tier (writemode)
 

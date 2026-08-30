@@ -33,7 +33,7 @@ export NEWAPI_WRITEMODE=read                          # read(默认) / ops / adm
 二进制是 **stdio 传输的 MCP server**，直接运行会等待 JSON-RPC 输入——单独跑没有输出是正常的。挂到一个 MCP 客户端里验证：
 
 - **Claude Desktop / Cline 等**：把二进制路径填进 `mcpServers` 配置，见 [客户端接入](client-integration.md)。
-- **DSH**：见 [客户端接入](client-integration.md) 的 cordis 挂载节，或直接抄 [examples/cordis-patch.yml](../examples/cordis-patch.yml)。
+- **DSH**：见 [客户端接入](client-integration.md) 的 cordis 挂载节，或直接抄 [examples/cordis-patch.yml](../../examples/cordis-patch.yml)。
 
 挂载成功后，客户端工具列表里应出现 `newapi_status` 等 11 个 read 档工具（ops/admin 档随 `NEWAPI_WRITEMODE` 增加）。先调 `newapi_status` 确认网关连通与 relay 活性。
 
@@ -42,7 +42,7 @@ export NEWAPI_WRITEMODE=read                          # read(默认) / ops / adm
 - **[工具参考](tools.md)** —— 23 个工具的参数、示例与注意事项
 - **[配置参考](configuration.md)** —— TOML 文件、环境变量全表、报表从库 `[report]` 段
 - **[客户端接入](client-integration.md)** —— Claude Desktop / DSH / 通用 stdio 接入与档位选型
-- **[上游兼容与已知坑](upstream-compat.md)** —— 对接自己 new-api 部署前建议先读
+- **[上游兼容与已知坑](../design/upstream-compat.md)** —— 对接自己 new-api 部署前建议先读
 
 ## 常见问题
 

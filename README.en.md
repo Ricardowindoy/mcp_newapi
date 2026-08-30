@@ -12,13 +12,13 @@ An MCP (Model Context Protocol) server for operating a [new-api](https://github.
 
 | Doc | Contents |
 |---|---|
-| **[docs/quick-start.en.md](docs/quick-start.en.md)** | Build, configure and mount in 5 minutes |
-| **[docs/tools.en.md](docs/tools.en.md)** | All 23 tools: parameters, examples, caveats |
-| **[docs/configuration.en.md](docs/configuration.en.md)** | Full TOML/env reference incl. `[report]` replica DB |
-| **[docs/client-integration.en.md](docs/client-integration.en.md)** | Claude Desktop / DSH / generic stdio clients |
-| **[docs/upstream-compat.en.md](docs/upstream-compat.en.md)** | new-api version adaptation & known pitfalls |
-| [CHANGELOG.md](CHANGELOG.md) / [CONTRIBUTING.en.md](CONTRIBUTING.en.md) / [SECURITY.en.md](SECURITY.en.md) | Changelog / Contributing / Security |
-| [DESIGN.md](DESIGN.md) | Design details (architecture, upstream contracts, milestones) |
+| **[docs/guide/quick-start.en.md](docs/guide/quick-start.en.md)** | Build, configure and mount in 5 minutes |
+| **[docs/guide/tools.en.md](docs/guide/tools.en.md)** | All 23 tools: parameters, examples, caveats |
+| **[docs/guide/configuration.en.md](docs/guide/configuration.en.md)** | Full TOML/env reference incl. `[report]` replica DB |
+| **[docs/guide/client-integration.en.md](docs/guide/client-integration.en.md)** | Claude Desktop / DSH / generic stdio clients |
+| **[docs/design/upstream-compat.en.md](docs/design/upstream-compat.en.md)** | new-api version adaptation & known pitfalls |
+| [CHANGELOG.md](docs/project/CHANGELOG.md) / [CONTRIBUTING.en.md](docs/project/CONTRIBUTING.en.md) / [SECURITY.en.md](docs/project/SECURITY.en.md) | Changelog / Contributing / Security |
+| [DESIGN.md](docs/design/DESIGN.md) | Design details (architecture, upstream contracts, milestones) |
 | [.docs/](docs/README.md) | Module-level maintenance docs (read before changing code) |
 
 ## Features
@@ -40,7 +40,7 @@ export NEWAPI_WRITEMODE=read                          # read (default) / ops / a
 ./bin/newapi-mcp                                      # stdio JSON-RPC; mount it into any MCP client
 ```
 
-Full walkthrough (TOML config, `token_file` secret indirection) in **[docs/quick-start.en.md](docs/quick-start.en.md)**.
+Full walkthrough (TOML config, `token_file` secret indirection) in **[docs/guide/quick-start.en.md](docs/guide/quick-start.en.md)**.
 
 ## Tools at a glance
 
@@ -65,7 +65,7 @@ Full walkthrough (TOML config, `token_file` secret indirection) in **[docs/quick
 | admin | `newapi_autoban_codes` | Auto-ban status codes CRUD (range algebra) |
 | admin | `newapi_tag_channels` | Batch edit / enable / disable by tag |
 
-Per-tool parameters and response examples: **[docs/tools.en.md](docs/tools.en.md)**.
+Per-tool parameters and response examples: **[docs/guide/tools.en.md](docs/guide/tools.en.md)**.
 
 ## Architecture
 
@@ -87,7 +87,7 @@ internal/reporter/ reporting leaf package (direct replica aggregation, DSN via c
 | `NEWAPI_TIMEOUT` | — | HTTP timeout seconds (default 10) |
 | `NEWAPI_REPORT_DB_DSN` | — | Replica DB DSN for `jiyuan_report` |
 
-\* Either `NEWAPI_TOKEN` or TOML `token`/`token_file`. Full field reference: **[docs/configuration.en.md](docs/configuration.en.md)**; template: [`newapi-mcp.example.toml`](newapi-mcp.example.toml).
+\* Either `NEWAPI_TOKEN` or TOML `token`/`token_file`. Full field reference: **[docs/guide/configuration.en.md](docs/guide/configuration.en.md)**; template: [`newapi-mcp.example.toml`](newapi-mcp.example.toml).
 
 ## Development
 
@@ -96,7 +96,7 @@ go vet ./... && go build ./...
 go test ./...        # pure-logic unit tests (httptest), no real gateway
 ```
 
-See [CONTRIBUTING.en.md](CONTRIBUTING.en.md) for the six-step "add a tool" workflow. Upstream reference snapshots live in `.upstream/` (gitignored).
+See [CONTRIBUTING.en.md](docs/project/CONTRIBUTING.en.md) for the six-step "add a tool" workflow. Upstream reference snapshots live in `.upstream/` (gitignored).
 
 ## License
 

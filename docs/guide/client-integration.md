@@ -21,7 +21,7 @@ newapi-mcp 是 **stdio 传输的 MCP server**，任何支持 stdio MCP 的客户
 }
 ```
 
-完整可抄文件：[`examples/claude-desktop-config.json`](../examples/claude-desktop-config.json)。
+完整可抄文件：[`examples/claude-desktop-config.json`](../../examples/claude-desktop-config.json)。
 
 ## DSH（DeepSeek Harness）
 
@@ -37,7 +37,7 @@ mcp-newapi:
     args: []
 ```
 
-wrapper 与片段可直接抄：[`examples/newapi-mcp-wrapper.sh`](../examples/newapi-mcp-wrapper.sh)、[`examples/cordis-patch.yml`](../examples/cordis-patch.yml)。改 wrapper / 二进制 / cordis.patch.yml 后需**重启 DSH** 生效。
+wrapper 与片段可直接抄：[`examples/newapi-mcp-wrapper.sh`](../../examples/newapi-mcp-wrapper.sh)、[`examples/cordis-patch.yml`](../../examples/cordis-patch.yml)。改 wrapper / 二进制 / cordis.patch.yml 后需**重启 DSH** 生效。
 
 ## 档位（writemode）怎么选
 

@@ -33,7 +33,7 @@ Prefer not to put the PAT in an environment variable? See the `token_file` indir
 The binary is an **MCP server over stdio transport**; run directly, it waits for JSON-RPC input — no output when run standalone is normal. Verify by mounting it into an MCP client:
 
 - **Claude Desktop / Cline, etc.**: put the binary path into the `mcpServers` config, see [Client Integration](client-integration.en.md).
-- **DSH**: see the cordis mounting section of [Client Integration](client-integration.en.md), or copy [examples/cordis-patch.yml](../examples/cordis-patch.yml) directly.
+- **DSH**: see the cordis mounting section of [Client Integration](client-integration.en.md), or copy [examples/cordis-patch.yml](../../examples/cordis-patch.yml) directly.
 
 Once mounted, the client's tool list should show 11 read-tier tools including `newapi_status` (ops/admin tiers add more as `NEWAPI_WRITEMODE` rises). Call `newapi_status` first to confirm gateway connectivity and relay liveness.
 
@@ -42,7 +42,7 @@ Once mounted, the client's tool list should show 11 read-tier tools including `n
 - **[Tools Reference](tools.en.md)** — parameters, examples, and caveats for all 23 tools
 - **[Configuration Reference](configuration.en.md)** — TOML file, full environment-variable table, and the reporting read replica `[report]` section
 - **[Client Integration](client-integration.en.md)** — Claude Desktop / DSH / generic stdio setup and tier selection
-- **[Upstream Compatibility & Known Pitfalls](upstream-compat.en.md)** — recommended reading before wiring up your own new-api deployment
+- **[Upstream Compatibility & Known Pitfalls](../design/upstream-compat.en.md)** — recommended reading before wiring up your own new-api deployment
 
 ## FAQ
 

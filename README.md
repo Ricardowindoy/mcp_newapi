@@ -12,13 +12,13 @@
 
 | 文档 | 内容 |
 |---|---|
-| **[docs/quick-start.md](docs/quick-start.md)**（[EN](docs/quick-start.en.md)） | 5 分钟构建 + 配置 + 挂载 |
-| **[docs/tools.md](docs/tools.md)**（[EN](docs/tools.en.md)） | 23 个工具参数/示例/注意事项 |
-| **[docs/configuration.md](docs/configuration.md)**（[EN](docs/configuration.en.md)） | TOML/env 全字段 + `[report]` 报表从库 |
-| **[docs/client-integration.md](docs/client-integration.md)**（[EN](docs/client-integration.en.md)） | Claude Desktop / DSH / 通用 stdio 接入 |
-| **[docs/upstream-compat.md](docs/upstream-compat.md)**（[EN](docs/upstream-compat.en.md)） | new-api 上游已知坑与维护映射 |
-| [CHANGELOG.md](CHANGELOG.md) / [CONTRIBUTING.md](CONTRIBUTING.md) / [SECURITY.md](SECURITY.md) | 更新日志 / 贡献 / 安全 |
-| [DESIGN.md](DESIGN.md) | 设计细节与决策（架构/契约/里程碑） |
+| **[docs/guide/quick-start.md](docs/guide/quick-start.md)**（[EN](docs/guide/quick-start.en.md)） | 5 分钟构建 + 配置 + 挂载 |
+| **[docs/guide/tools.md](docs/guide/tools.md)**（[EN](docs/guide/tools.en.md)） | 23 个工具参数/示例/注意事项 |
+| **[docs/guide/configuration.md](docs/guide/configuration.md)**（[EN](docs/guide/configuration.en.md)） | TOML/env 全字段 + `[report]` 报表从库 |
+| **[docs/guide/client-integration.md](docs/guide/client-integration.md)**（[EN](docs/guide/client-integration.en.md)） | Claude Desktop / DSH / 通用 stdio 接入 |
+| **[docs/design/upstream-compat.md](docs/design/upstream-compat.md)**（[EN](docs/design/upstream-compat.en.md)） | new-api 上游已知坑与维护映射 |
+| [CHANGELOG.md](docs/project/CHANGELOG.md) / [CONTRIBUTING.md](docs/project/CONTRIBUTING.md) / [SECURITY.md](docs/project/SECURITY.md) | 更新日志 / 贡献 / 安全 |
+| [DESIGN.md](docs/design/DESIGN.md) | 设计细节与决策（架构/契约/里程碑） |
 | [.docs/](docs/README.md) | 模块级维护文档（改代码前读） |
 | [newapi-mcp.example.toml](newapi-mcp.example.toml) · [examples/](examples/) | 配置模板 · 可抄的接入示例 |
 
@@ -28,7 +28,7 @@
 - **Go 单二进制**，mcp-go + stdio 传输，无运行时依赖
 - **密钥安全**：任何响应不透出完整 key（掩码头尾 4 位）；删除/高危变更强制 `confirm=true`
 - **可选报表**：`jiyuan_report` 直连 MySQL 从库聚合渠道消费（`[report]` 配置，缺省不影响其他工具）
-- **上游解耦**：端点路径集中在 `internal/newapi/routes.go`，上游更新只动对应文件（见 [DESIGN.md](DESIGN.md) §5 维护映射表）
+- **上游解耦**：端点路径集中在 `internal/newapi/routes.go`，上游更新只动对应文件（见 [DESIGN.md](docs/design/DESIGN.md) §5 维护映射表）
 
 ## 快速开始
 
@@ -41,7 +41,7 @@ export NEWAPI_WRITEMODE=read                          # read(默认)/ops/admin
 ./bin/newapi-mcp                                      # stdio JSON-RPC，挂到 MCP 客户端使用
 ```
 
-完整步骤（含 TOML 配置与 `token_file` 密钥间接引用）见 **[docs/quick-start.md](docs/quick-start.md)**。
+完整步骤（含 TOML 配置与 `token_file` 密钥间接引用）见 **[docs/guide/quick-start.md](docs/guide/quick-start.md)**。
 
 ## 工具一览
 
@@ -66,7 +66,7 @@ export NEWAPI_WRITEMODE=read                          # read(默认)/ops/admin
 | admin | `newapi_autoban_codes` | autoban 状态码增删查改（disable/retry，区间代数） |
 | admin | `newapi_tag_channels` | 按标签批量编辑/启停渠道 |
 
-每个工具的参数与返回示例见 **[docs/tools.md](docs/tools.md)**。
+每个工具的参数与返回示例见 **[docs/guide/tools.md](docs/guide/tools.md)**。
 
 ## 架构（分层 + 域子包，单向依赖）
 
@@ -88,7 +88,7 @@ internal/reporter/ 报表域：直连从库聚合消费报表（叶子包，DSN 
 | `NEWAPI_TIMEOUT` | — | HTTP 超时秒数，默认 10 |
 | `NEWAPI_REPORT_DB_DSN` | — | 报表从库 DSN（`jiyuan_report` 用，可缺省） |
 
-\* `NEWAPI_TOKEN` 与 TOML `token`/`token_file` 二选一。全字段说明（含 `[report]` 段）见 **[docs/configuration.md](docs/configuration.md)**；占位模板 [`newapi-mcp.example.toml`](newapi-mcp.example.toml)。
+\* `NEWAPI_TOKEN` 与 TOML `token`/`token_file` 二选一。全字段说明（含 `[report]` 段）见 **[docs/guide/configuration.md](docs/guide/configuration.md)**；占位模板 [`newapi-mcp.example.toml`](newapi-mcp.example.toml)。
 
 ## 开发
 
@@ -97,7 +97,7 @@ go vet ./... && go build ./...
 go test ./...        # 纯逻辑单测（httptest，不碰网络）
 ```
 
-贡献流程与「新增一个工具」六步法见 [CONTRIBUTING.md](CONTRIBUTING.md)。上游契约验证用的参考源码快照在 `.upstream/`（gitignore）。
+贡献流程与「新增一个工具」六步法见 [CONTRIBUTING.md](docs/project/CONTRIBUTING.md)。上游契约验证用的参考源码快照在 `.upstream/`（gitignore）。
 
 ## License
 

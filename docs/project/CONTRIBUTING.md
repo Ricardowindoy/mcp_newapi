@@ -31,10 +31,10 @@ cmd/newapi-mcp → internal/mcp（registry 表 + server 装配）
 internal/config（配置装载，横向模块）
 ```
 
-- **分层规范与禁令**：[.docs/_mustread/模块职责边界设计规范.md](.docs/_mustread/模块职责边界设计规范.md)
-- **构建/测试/安全红线**：[.docs/_mustread/开发规范.md](.docs/_mustread/开发规范.md)
-- 各模块「功能说明 / 实现详细说明」：[.docs/README.md](.docs/README.md)（模块索引）
-- 设计背景与决策：[DESIGN.md](DESIGN.md)
+- **分层规范与禁令**：[.docs/_mustread/模块职责边界设计规范.md](../../.docs/_mustread/模块职责边界设计规范.md)
+- **构建/测试/安全红线**：[.docs/_mustread/开发规范.md](../../.docs/_mustread/开发规范.md)
+- 各模块「功能说明 / 实现详细说明」：[.docs/README.md](../../.docs/README.md)（模块索引）
+- 设计背景与决策：[DESIGN.md](../design/DESIGN.md)
 
 ## 新增一个工具的流程
 

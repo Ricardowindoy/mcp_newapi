@@ -31,10 +31,10 @@ cmd/newapi-mcp → internal/mcp (registry table + server assembly)
 internal/config (config loading, cross-cutting module)
 ```
 
-- **Layering rules and prohibitions**: [.docs/_mustread/模块职责边界设计规范.md](.docs/_mustread/模块职责边界设计规范.md)
-- **Build/test/security red lines**: [.docs/_mustread/开发规范.md](.docs/_mustread/开发规范.md)
-- Per-module "spec / implementation details": [.docs/README.md](.docs/README.md) (module index)
-- Design background and decisions: [DESIGN.md](DESIGN.md)
+- **Layering rules and prohibitions**: [.docs/_mustread/模块职责边界设计规范.md](../../.docs/_mustread/模块职责边界设计规范.md)
+- **Build/test/security red lines**: [.docs/_mustread/开发规范.md](../../.docs/_mustread/开发规范.md)
+- Per-module "spec / implementation details": [.docs/README.md](../../.docs/README.md) (module index)
+- Design background and decisions: [DESIGN.md](../design/DESIGN.md)
 
 ## Flow for Adding a New Tool
 

@@ -55,10 +55,10 @@ db_dsn = ""                                   # plaintext not recommended
 db_dsn_file = "/home/radxa/.dsh/report-db.dsn"
 ```
 
-A placeholder template is available at the repo root: [`newapi-mcp.example.toml`](../newapi-mcp.example.toml).
+A placeholder template is available at the repo root: [`newapi-mcp.example.toml`](../../newapi-mcp.example.toml).
 
 ## Security Notes
 
 - Never write the PAT / DSN into the config file itself; reference them indirectly via `token_file` / `db_dsn_file` with file permission `0600`
 - No MCP response ever exposes a full key (masked, keeping 4 chars at each end); a full key is only passed in explicitly by the caller in create/update requests
-- For production deployment examples (systemd/wrapper) see [`examples/`](../examples/)
+- For production deployment examples (systemd/wrapper) see [`examples/`](../../examples/)
