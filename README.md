@@ -1,0 +1,69 @@
+# newapi-mcp
+
+操作 [new-api](https://github.com/QuantumNous/new-api) 网关的 MCP (Model Context Protocol) 服务器：让 Agent 直接读取网关运行状态、管理渠道与令牌。
+
+## 特性
+
+- **17 个工具，三档权限**（`NEWAPI_WRITEMODE`：`read` 8 个 / `ops` +6 / `admin` +3），低档不注册写工具
+- **Go 单二进制**，mcp-go + stdio 传输，无运行时依赖
+- **密钥安全**：任何响应不透出完整 key（掩码头尾 4 位）；删除操作强制 `confirm=true`
+- **上游解耦**：端点路径集中在 `internal/newapi/routes.go`，域模块一域一文件，上游更新只动对应文件（见 DESIGN.md §5 维护映射表）
+
+## 快速开始
+
+```bash
+# 构建（Go 1.26+）
+go build -o bin/newapi-mcp ./cmd/newapi-mcp
+
+# 手动运行
+export NEWAPI_BASE_URL=https://your-newapi.example
+export NEWAPI_TOKEN=<面板 PAT>          # 个人设置 → 系统访问令牌
+export NEWAPI_WRITEMODE=ops            # read(默认)/ops/admin
+./bin/newapi-mcp                       # stdio JSON-RPC
+```
+
+## 工具一览
+
+| 档位 | 工具 | 说明 |
+|---|---|---|
+| read | `newapi_status` | 站点状态 + relay 活性探测 |
+| read | `newapi_list_models` | 全站模型（按分组） |
+| read | `newapi_list_channels` / `newapi_get_channel` | 渠道列表/详情（管理员 PAT） |
+| read | `newapi_list_tokens` | 当前用户令牌列表 |
+| read | `newapi_logs` | 消费/错误日志检索 |
+| read | `newapi_usage_summary` | 近 N 天按模型聚合用量（$ 换算） |
+| read | `newapi_pricing` | 模型倍率（实例可能禁用） |
+| ops | `newapi_test_channel` / `newapi_test_all_channels` | 单渠道/全量测试 |
+| ops | `newapi_update_channel_balance` | 刷新渠道余额 |
+| ops | `newapi_set_channel_status` | 启用/禁用渠道 |
+| ops | `newapi_create_token` / `newapi_delete_token` | 令牌生命周期 |
+| admin | `newapi_create_channel` / `newapi_update_channel` / `newapi_delete_channel` | 渠道 CRUD |
+
+## 架构（三层，单向依赖）
+
+```
+internal/mcp/      工具层薄壳：参数解析 → 调域方法 → 输出
+internal/newapi/   API 层：client.go 传输 + routes.go 端点耦合点 + 一域一文件
+  channels.go 渠道读 · channel_ops.go 渠道运维 · channels_admin.go 渠道CRUD
+  tokens.go 令牌域 · logs.go 日志/聚合 · models.go · status.go · mask.go
+```
+
+设计细节与上游契约注释见 [DESIGN.md](DESIGN.md)。
+
+## 配置
+
+| 环境变量 | 必填 | 说明 |
+|---|---|---|
+| `NEWAPI_BASE_URL` | ✅ | 网关地址（无尾斜杠） |
+| `NEWAPI_TOKEN` | ✅ | 面板 PAT（管理员 PAT 才有渠道读权限） |
+| `NEWAPI_WRITEMODE` | — | `read`（默认）/ `ops` / `admin` |
+| `NEWAPI_TIMEOUT` | — | HTTP 超时秒数，默认 10 |
+
+## 开发
+
+```bash
+go vet ./... && go build ./... 
+go test ./...        # 纯逻辑单测（不碰网络）
+```
+
+上游契约验证用的参考源码快照在 `.upstream/`（gitignore）。

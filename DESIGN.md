@@ -147,29 +147,33 @@ DSH 挂载（cordis.patch.yml，改后需重启 DSH 生效）：
 
 ```yaml
 mcp-newapi:
-  command: /home/radxa/project/mcp_newapi/bin/newapi-mcp
-  env:
-    NEWAPI_BASE_URL: https://newapi.ashou.site
-    NEWAPI_TOKEN: <面板PAT，勿提交入库>
+  name: '@deepseek-ai/dsh-mcp-client'
+  config:
+    serverName: newapi
+    transport: stdio
+    command: /home/radxa/.dsh/mcp-newapi-wrapper.sh   # PAT 从 ~/.dsh/newapi.pat (0600) 读取
+    args: []
+# wrapper 内 export NEWAPI_WRITEMODE=ops（read/ops/admin 三档）
 ```
 
 > 注意：token 写进 cordis.patch.yml 即落入 `~/.dsh/`，属本机私有配置，不入 git。
 
-## 7. 安全设计
+## 7. 安全设计（实现修订）
 
-1. **掩码原则**：所有工具返回中的上游渠道 key、sk- 令牌值默认掩码（保留头尾各 4 位）；仅「创建令牌」的当次响应返回完整值（否则创建无意义）。
-2. **能力分档靠不注册**：低档模式下写工具根本不存在，Agent 无法「试探」。
-3. **删除类工具带 `confirm` 必填参数**，且 admin 档才注册。
-4. **不暴露 option/redemption**：全局运营配置的修改风险远大于收益。
-5. **PAT 权限天然继承**：MCP 能做的最多等于该 PAT 账号在面板里能做的，不额外放大权限；建议为 Agent 单独建一个账号+PAT，便于审计与回收。
-6. **日志与凭据**：MCP 进程自身不打请求体日志（避免 key 落盘）；`/proc/self/environ` 风险参考 github-mcp-server 教训，Go 侧启动读取 env 后即无需再持有敏感值副本在日志路径。
+1. **掩码原则**：所有工具返回中的上游渠道 key、sk- 令牌值一律掩码（保留头尾各 4 位）。渠道详情端点上游本就不回 key；令牌完整 key 创建后只在面板可见——**任何 MCP 响应都不透出完整 key**（「创建令牌」返回 id + 掩码，提示去面板复制）。
+2. **能力分档靠不注册**：低档模式下写工具根本不存在，Agent 无法「试探」。当前生产档位：`ops`（14 工具）；`admin` 档（17 工具）按需在 wrapper 里切换。
+3. **删除类工具带 `confirm` 必填参数**（delete_token/delete_channel），不传直接拒绝。
+4. **不暴露 option/redemption**：全局运营配置的修改风险远大于收益；也不封装多 key 渠道的 key 追加模式。
+5. **PAT 权限天然继承**：MCP 能做的最多等于该 PAT 账号在面板里能做的，不额外放大权限。
+6. **日志与凭据**：MCP 进程自身不打请求体日志（避免 key 落盘）；PAT 存 `~/.dsh/newapi.pat`（0600），不进 cordis.patch.yml、不进 git。
 
-## 8. 实现里程碑
+## 8. 实现里程碑（进度）
 
-1. **M1 骨架**：go.mod、client.go（鉴权+解包+超时）、mcp-go stdio server、`newapi_status` 一个工具打通，DSH 挂载跑通。
-2. **M2 read 档**：§4.1 全部工具 + 掩码层 + 对目标 new-api 实例逐端点核对（路径/字段以实例版本为准修正 routes.go）。
-3. **M3 ops 档**：渠道测试/启停/余额、令牌管理；`newapi_usage_summary` 聚合。
-4. **M4 admin 档 + 打磨**：渠道 CRUD、README、（可选）Streamable HTTP 传输。
+1. ✅ **M1 骨架**：client.go（鉴权+解包+超时）、mcp-go stdio server、`newapi_status` 打通，DSH 挂载。
+2. ✅ **M2 read 档**：8 工具 + 掩码层，全部对实装端点核对（发现：PUT status 被上游拒绝、pricing 被实例禁用、/api/data/ 为聚合数据源）。
+3. ✅ **M3 ops 档**：渠道测试/启停/余额/全量测试 + 令牌管理（创建后按名回查 id+掩码），分层重构（§5）。
+4. ✅ **M4 admin 档**：渠道 CRUD（创建带 key 只进不出；更新 PATCH 语义；删除 confirm），全闭环实测（创建 id=108 → 更新 → 删除）。
+5. ⬜ **M5 可选打磨**：README、单元测试（client 解包/掩码）、（可选）Streamable HTTP 传输。
 
 ## 9. 验收场景
 
