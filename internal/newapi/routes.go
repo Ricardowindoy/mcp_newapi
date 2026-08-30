@@ -13,7 +13,13 @@ const (
 	RouteTokens        = "/api/token/"     // 令牌列表
 	RouteLogs          = "/api/log/"       // 日志列表
 	RouteLogStat       = "/api/log/stat"   // 日志总量统计
-	// M3 扩展：
-	// RouteChannelTest = "/api/channel/test/%d"
-	// RouteChannelBal  = "/api/channel/update_balance/%d"
+
+	// ops 档
+	RouteChannelTestAll = "/api/channel/test"           // 触发全量渠道测试（异步系统任务）
+	RouteChannelTest    = "/api/channel/test/%d"        // 测试单渠道
+	RouteChannelBalAll  = "/api/channel/update_balance" // 全量刷新余额
+	RouteChannelBal     = "/api/channel/update_balance/%d"
+	RouteChannelStatus  = "/api/channel/%d/status" // 启停渠道 {status:1|2}
+	RouteTokenSearch    = "/api/token/search"      // 按关键字搜令牌
+	RouteTokenID        = "/api/token/%d"          // 删除令牌
 )

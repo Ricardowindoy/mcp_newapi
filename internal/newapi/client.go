@@ -63,6 +63,42 @@ func (e *APIError) Error() string {
 // Do 发起一次管理面请求，解包统一响应，将 data 原样返回。
 // method/path 如 GET /api/status；query 可为 nil；body 会被 JSON 编码。
 func (c *Client) Do(ctx context.Context, method, path string, query url.Values, body any) (json.RawMessage, error) {
+	env, _, resp, err := c.doRequest(ctx, method, path, query, body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode >= 400 || !env.Success {
+		msg := env.Message
+		if msg == "" {
+			msg = http.StatusText(resp.StatusCode)
+		}
+		return nil, &APIError{Reachable: true, StatusCode: resp.StatusCode, Message: msg}
+	}
+	return env.Data, nil
+}
+
+// DoTopLevel 发起请求并把整个顶层 JSON 应答解析为 map 返回。
+// 用于 time/error_code 等业务字段放在顶层（而非 data）的端点（如渠道测试）。
+// 注意：业务 success=false 不作为错误返回，由调用方按业务语义处理；
+// 仅网络不可达 / 非 JSON 应答 / HTTP>=500 返回错误。
+func (c *Client) DoTopLevel(ctx context.Context, method, path string, query url.Values, body any) (map[string]any, error) {
+	_, raw, resp, err := c.doRequest(ctx, method, path, query, body)
+	if err != nil {
+		return nil, err
+	}
+	var m map[string]any
+	if jerr := json.Unmarshal(raw, &m); jerr != nil {
+		return nil, &APIError{
+			Reachable:  true,
+			StatusCode: resp.StatusCode,
+			Message:    fmt.Sprintf("非 JSON 应答: %s", truncate(string(raw), 200)),
+		}
+	}
+	return m, nil
+}
+
+// doRequest 发送请求并返回（envelope, 原始字节, 响应, 错误）。
+func (c *Client) doRequest(ctx context.Context, method, path string, query url.Values, body any) (*envelope, []byte, *http.Response, error) {
 	u := c.BaseURL + path
 	if len(query) > 0 {
 		u += "?" + query.Encode()
@@ -71,13 +107,13 @@ func (c *Client) Do(ctx context.Context, method, path string, query url.Values, 
 	if body != nil {
 		b, err := json.Marshal(body)
 		if err != nil {
-			return nil, fmt.Errorf("请求体编码失败: %w", err)
+			return nil, nil, nil, fmt.Errorf("请求体编码失败: %w", err)
 		}
 		rdr = bytes.NewReader(b)
 	}
 	req, err := http.NewRequestWithContext(ctx, method, u, rdr)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	req.Header.Set("Accept", "application/json")
 	if body != nil {
@@ -88,30 +124,23 @@ func (c *Client) Do(ctx context.Context, method, path string, query url.Values, 
 	}
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return nil, &APIError{Message: err.Error(), Reachable: false}
+		return nil, nil, nil, &APIError{Message: err.Error(), Reachable: false}
 	}
 	defer resp.Body.Close()
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
 	if err != nil {
-		return nil, &APIError{Message: err.Error(), Reachable: true, StatusCode: resp.StatusCode}
+		return nil, nil, resp, &APIError{Message: err.Error(), Reachable: true, StatusCode: resp.StatusCode}
 	}
 	var env envelope
 	if err := json.Unmarshal(raw, &env); err != nil {
 		// 非 JSON 应答（如反代错误页）
-		return nil, &APIError{
+		return nil, raw, resp, &APIError{
 			Reachable:  true,
 			StatusCode: resp.StatusCode,
 			Message:    fmt.Sprintf("非 JSON 应答（可能被反代拦截或路径不存在）: %s", truncate(string(raw), 200)),
 		}
 	}
-	if resp.StatusCode >= 400 || !env.Success {
-		msg := env.Message
-		if msg == "" {
-			msg = http.StatusText(resp.StatusCode)
-		}
-		return nil, &APIError{Reachable: true, StatusCode: resp.StatusCode, Message: msg}
-	}
-	return env.Data, nil
+	return &env, raw, resp, nil
 }
 
 // GetJSON 便捷方法：GET 并把 data 解到 out。

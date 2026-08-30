@@ -1,10 +1,10 @@
 package mcp
 
+// tools_read.go read 档工具（8 个）。薄壳：参数解析 → 调 internal/newapi 对应域方法 → jsonResult 输出。
+
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -173,30 +173,3 @@ func pricingHandler(client *newapi.Client) toolHandler {
 	}
 }
 
-// ---- 小助手 ----
-
-type toolHandler = func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error)
-
-func jsonResult(v any) (*mcp.CallToolResult, error) {
-	b, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
-		return mcp.NewToolResultError("结果编码失败: " + err.Error()), nil
-	}
-	return mcp.NewToolResultText(string(b)), nil
-}
-
-// errResult 把 newapi 错误转成 MCP 工具错误结果（保留可达性信息）。
-func errResult(err error) (*mcp.CallToolResult, error) {
-	var apiErr *newapi.APIError
-	if errors.As(err, &apiErr) {
-		return mcp.NewToolResultError(fmt.Sprintf("[reachable=%v status=%d] %s", apiErr.Reachable, apiErr.StatusCode, apiErr.Message)), nil
-	}
-	return mcp.NewToolResultError(err.Error()), nil
-}
-
-func orDefault(req mcp.CallToolRequest, key string, def int) int {
-	if v := req.GetInt(key, def); v > 0 {
-		return v
-	}
-	return def
-}

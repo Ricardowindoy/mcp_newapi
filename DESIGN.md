@@ -93,32 +93,46 @@ new-api 是流行的 LLM 聚合分发网关（渠道管理、令牌分发、计�
 
 - `newapi://status`、`newapi://models`——便于 client 侧作为上下文预取，不占工具调用。
 
-## 5. 架构
+## 5. 架构：分层 + 域模块自治
+
+三层职责，单向依赖（mcp → newapi 域方法 → client 传输）：
 
 ```
-mcp_newapi/
-├── cmd/newapi-mcp/main.go        # 入口：读 env，装配 server，stdio 启动
-├── internal/
-│   ├── newapi/
-│   │   ├── routes.go             # 端点常量表（唯一耦合点）
-│   │   ├── client.go             # HTTP client：鉴权、重试、超时、统一响应解包
-│   │   ├── channels.go           # 渠道域方法
-│   │   ├── tokens.go             # 令牌域方法
-│   │   ├── logs.go               # 日志/统计域方法
-│   │   └── types.go              # DTO（只保留 Agent 关心的字段，掩码在此层做）
-│   └── mcp/
-│       ├── server.go             # mcp-go server 装配、工具注册（按 writemode 分档）
-│       ├── tools_read.go         # read 档工具
-│       ├── tools_ops.go
-│       ├── tools_admin.go
-│       └── mask.go               # key 掩码（sk-abc...xyz → 保留头尾 4 位）
-├── DESIGN.md                     # 本文档
-└── go.mod
+┌─ internal/mcp/（工具层·薄壳）─────────────────────────────┐
+│ server.go     装配 + 按 writemode 分档注册                │
+│ tools_read.go read 档 8 工具：参数解析→调域方法→jsonResult │
+│ tools_ops.go  ops 档 6 工具（同上，含 confirm 校验）      │
+│ helpers.go    jsonResult/errResult/orDefault（唯一公共件）│
+└──────────────────────────────────────────────────────┘
+                    ↓ 只调域方法，不含业务逻辑
+┌─ internal/newapi/（API 层·域模块自治）───────────────────┐
+│ client.go      传输层：HTTP+鉴权+信封解包+APIError，零业务│
+│ routes.go      上游端点路径常量（★唯一耦合点）            │
+│ ── 域模块（一域一文件：DTO+方法+上游契约注释）─────────  │
+│ status.go      站点状态 + relay 探测                      │
+│ models.go      模型列表 / 定价                            │
+│ channels.go    渠道（读）                                 │
+│ channel_ops.go 渠道运维（测试/余额/启停）                 │
+│ tokens.go      令牌管理（列表/搜索/创建/删除，读写一体）  │
+│ logs.go        日志 / 统计 / dashboard 按模型聚合         │
+│ mask.go        密钥掩码工具                               │
+└──────────────────────────────────────────────────────┘
+cmd/newapi-mcp/main.go  # 入口：读 env，装配，stdio 启动
 ```
 
-**请求链路**：MCP tool → 参数校验 → `newapi.Client` 域方法 → HTTP（10s 超时，GET 失败重试 1 次）→ 统一解包 `{success,message,data}` → DTO 裁剪+掩码 → JSON 返回给 Agent。
+**上游更新维护映射**（高内聚低耦合的落点）：
 
-**错误约定**：new-api 返回 `success:false` 时，MCP 工具返回结构化错误（含 HTTP 状态码 + message），不 panic、不吞错；网络错误明确标注「网关不可达」以便 Agent 区分「网关挂了」和「查询本身错」。
+| 上游变化 | 只需改 |
+|---|---|
+| 端点路径/方法漂移 | `routes.go` 常量 |
+| 某域响应字段变化 | 对应域文件的 DTO（raw→summary） |
+| 新增业务域 | 新域文件 + routes 常量 + mcp 层一个薄壳工具 |
+| 鉴权方式变化 | 仅 `client.go` |
+| 工具描述/参数调整 | 仅 mcp 层 |
+
+**请求链路**：MCP tool → 参数校验 → `newapi.Client` 域方法 → HTTP（10s 超时）→ 统一解包 `{success,message,data}`（渠道测试等顶层字段端点走 `DoTopLevel`）→ DTO 裁剪+掩码 → JSON 返回给 Agent。
+
+**错误约定**：new-api 返回 `success:false` 时，MCP 工具返回结构化错误（含 HTTP 状态码 + message），不 panic、不吞错；网络错误明确标注「网关不可达」以便 Agent 区分「网关挂了」和「查询本身错」。业务性失败（渠道测试不通）是**有效结果**而非错误。
 
 ## 6. 配置
 

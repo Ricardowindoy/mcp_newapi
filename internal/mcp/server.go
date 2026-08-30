@@ -27,7 +27,7 @@ func NewServer(client *newapi.Client, writemode string) *server.MCPServer {
 		// M4: registerAdminTools(s, client)
 		fallthrough
 	case ModeOps:
-		// M3: registerOpsTools(s, client)
+		registerOpsTools(s, client)
 	}
 	return s
 }
