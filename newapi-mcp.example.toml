@@ -1,6 +1,8 @@
 # newapi-mcp 配置文件示例
 # 用法: newapi-mcp --config /path/to/newapi-mcp.toml
-# 优先级: 内置默认值 < 本文件 < 环境变量 (NEWAPI_BASE_URL / NEWAPI_TOKEN / NEWAPI_WRITEMODE / NEWAPI_TIMEOUT)
+# 优先级: 内置默认值 < 本文件 < 环境变量
+# 环境变量: NEWAPI_BASE_URL / NEWAPI_TOKEN / NEWAPI_WRITEMODE / NEWAPI_TIMEOUT / NEWAPI_REPORT_DB_DSN
+# 逐字段说明见 docs/configuration.md
 
 [newapi]
 # 网关地址（必填，无尾斜杠）
@@ -11,8 +13,15 @@ base_url = "https://newapi.ashou.site"
 # token = ""
 token_file = "/home/radxa/.dsh/newapi.pat"
 
-# 工具档位: read(8 只读) / ops(+6 写操作) / admin(+3 渠道 CRUD)
+# 工具档位: read(11 只读) / ops(+6 运维) / admin(+6 渠道管理与系统设置)
 writemode = "ops"
 
 # 上游 HTTP 超时秒数
 timeout_seconds = 10
+
+# ---------- 可选：基元报表从库（newapi_jiyuan_report 数据源） ----------
+# 未配置时报表工具仍注册，调用时报「报表功能未配置」。
+# DSN 解析优先级: env NEWAPI_REPORT_DB_DSN > db_dsn > db_dsn_file 首行（0600，推荐）
+[report]
+db_dsn = ""                                  # 直连 DSN user:pass@tcp(host:port)/db?charset=utf8mb4（不推荐明文落盘）
+db_dsn_file = "/home/radxa/.dsh/report-db.dsn"

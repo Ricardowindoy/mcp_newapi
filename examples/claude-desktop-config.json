@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "newapi": {
+      "command": "/absolute/path/to/bin/newapi-mcp",
+      "env": {
+        "NEWAPI_BASE_URL": "https://your-newapi.example",
+        "NEWAPI_TOKEN": "<面板 PAT / panel PAT>",
+        "NEWAPI_WRITEMODE": "ops"
+      }
+    }
+  }
+}

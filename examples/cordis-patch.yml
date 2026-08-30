@@ -1,0 +1,11 @@
+# cordis.patch.yml 挂载片段（DSH 用）
+# 与现有 mcp 条目并列放；改后需重启 DSH 生效。
+mcp-newapi:
+  name: '@deepseek-ai/dsh-mcp-client'
+  config:
+    serverName: newapi
+    transport: stdio
+    command: /home/<user>/.dsh/mcp-newapi-wrapper.sh   # 见 examples/newapi-mcp-wrapper.sh
+    args: []
+# 生产配置 ~/.dsh/newapi-mcp.toml（0600）：
+#   base_url + token_file(~/.dsh/newapi.pat) + writemode + [report]（可选报表从库）
