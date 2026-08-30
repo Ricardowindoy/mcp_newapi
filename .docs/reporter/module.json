@@ -1,1 +1,1 @@
-{"name": "reporter", "summary": "报表域：执行本地报表脚本并回读 markdown 产物（叶子包，无 HTTP 依赖）", "paths": ["internal/reporter/**"], "uses": []}
+{"name": "reporter", "summary": "报表域：直连报表从库（MySQL）聚合基元渠道消费报表，结构化 JSON 返回（叶子包，凭据经 entry 注入）", "paths": ["internal/reporter/**"], "uses": []}
