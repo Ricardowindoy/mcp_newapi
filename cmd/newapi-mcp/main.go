@@ -1,47 +1,44 @@
 package main
 
+// 入口：加载配置（internal/config）→ 装配 client 与 server → stdio 服务。
+// 本文件不含业务逻辑。
+
 import (
 	"bufio"
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"os"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/mark3labs/mcp-go/server"
 
+	"mcp_newapi/internal/config"
 	"mcp_newapi/internal/mcp"
 	"mcp_newapi/internal/newapi"
 )
 
 func main() {
-	baseURL := os.Getenv("NEWAPI_BASE_URL")
-	token := os.Getenv("NEWAPI_TOKEN")
-	if baseURL == "" {
-		fmt.Fprintln(os.Stderr, "NEWAPI_BASE_URL 未设置")
+	configPath := flag.String("config", "", "TOML 配置文件路径（缺省只用默认值+环境变量）")
+	flag.Parse()
+
+	cfg, err := config.Load(*configPath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "配置错误:", err)
 		os.Exit(1)
 	}
-	writemode := strings.ToLower(strings.TrimSpace(os.Getenv("NEWAPI_WRITEMODE")))
-	if writemode == "" {
-		writemode = mcp.ModeRead
-	}
-	timeout := 10 * time.Second
-	if v := os.Getenv("NEWAPI_TIMEOUT"); v != "" {
-		if sec, err := strconv.Atoi(v); err == nil && sec > 0 {
-			timeout = time.Duration(sec) * time.Second
-		}
-	}
 
-	client := newapi.NewClient(baseURL, token, timeout)
-	s := mcp.NewServer(client, writemode)
+	client := newapi.NewClient(
+		cfg.NewAPI.BaseURL,
+		cfg.NewAPI.Token,
+		time.Duration(cfg.NewAPI.TimeoutSec)*time.Second,
+	)
+	s := mcp.NewServer(client, cfg.NewAPI.WriteMode)
 
-	// stdio 传输：stdin/stdout 需无缓冲
 	stdioServer := server.NewStdioServer(s)
 	stdioServer.SetErrorLogger(log.New(os.Stderr, "", log.LstdFlags))
-	ctx := context.Background()
-	if err := stdioServer.Listen(ctx, bufio.NewReader(os.Stdin), os.Stdout); err != nil {
+	if err := stdioServer.Listen(context.Background(), bufio.NewReader(os.Stdin), os.Stdout); err != nil {
 		fmt.Fprintln(os.Stderr, "server 退出:", err)
 		os.Exit(1)
 	}

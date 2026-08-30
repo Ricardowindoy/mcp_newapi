@@ -93,17 +93,20 @@ new-api 是流行的 LLM 聚合分发网关（渠道管理、令牌分发、计�
 
 - `newapi://status`、`newapi://models`——便于 client 侧作为上下文预取，不占工具调用。
 
-## 5. 架构：分层 + 域模块自治
+## 5. 架构：分层 + 域模块自治 + 表驱动注册
 
-三层职责，单向依赖（mcp → newapi 域方法 → client 传输）：
+四层职责，单向依赖（mcp 工具层 → newapi 域方法 → client 传输；config 独立横向模块）：
 
 ```
-┌─ internal/mcp/（工具层·薄壳）─────────────────────────────┐
-│ server.go     装配 + 按 writemode 分档注册                │
-│ tools_read.go read 档 8 工具：参数解析→调域方法→jsonResult │
-│ tools_ops.go  ops 档 6 工具（同上，含 confirm 校验）      │
-│ helpers.go    jsonResult/errResult/orDefault（唯一公共件）│
-└──────────────────────────────────────────────────────┘
+┌─ internal/mcp/（工具层·薄壳）────────────────────────────────┐
+│ registry.go    ★对外服务汇总表（表驱动）：17 个工具的唯一声明  │
+│                （Name/Tier/描述/参数/Handler 工厂）           │
+│ server.go      装配：遍历表按 writemode 过滤注册              │
+│ tools_read.go  read 档 handler 实现：参数解析→调域方法→输出   │
+│ tools_ops.go   ops 档 handler 实现（含 confirm 校验）         │
+│ tools_admin.go admin 档 handler 实现                          │
+│ helpers.go     jsonResult/errResult/orDefault（唯一公共件）   │
+└──────────────────────────────────────────────────────────┘
                     ↓ 只调域方法，不含业务逻辑
 ┌─ internal/newapi/（API 层·域模块自治）───────────────────┐
 │ client.go      传输层：HTTP+鉴权+信封解包+APIError，零业务│
@@ -126,22 +129,31 @@ cmd/newapi-mcp/main.go  # 入口：读 env，装配，stdio 启动
 |---|---|
 | 端点路径/方法漂移 | `routes.go` 常量 |
 | 某域响应字段变化 | 对应域文件的 DTO（raw→summary） |
-| 新增业务域 | 新域文件 + routes 常量 + mcp 层一个薄壳工具 |
+| 新增业务域 | 新域文件 + routes 常量 + registry.go 表项 + handler |
+| 新增/调整对外工具 | `registry.go` 表项（+handler 实现），server.go 不动 |
 | 鉴权方式变化 | 仅 `client.go` |
-| 工具描述/参数调整 | 仅 mcp 层 |
+| 配置项变化 | 仅 `internal/config` |
 
 **请求链路**：MCP tool → 参数校验 → `newapi.Client` 域方法 → HTTP（10s 超时）→ 统一解包 `{success,message,data}`（渠道测试等顶层字段端点走 `DoTopLevel`）→ DTO 裁剪+掩码 → JSON 返回给 Agent。
 
 **错误约定**：new-api 返回 `success:false` 时，MCP 工具返回结构化错误（含 HTTP 状态码 + message），不 panic、不吞错；网络错误明确标注「网关不可达」以便 Agent 区分「网关挂了」和「查询本身错」。业务性失败（渠道测试不通）是**有效结果**而非错误。
 
-## 6. 配置
+## 6. 配置（独立模块 internal/config）
 
-| 环境变量 | 必填 | 说明 |
-|---|---|---|
-| `NEWAPI_BASE_URL` | ✅ | 如 `https://newapi.ashou.site`（不带尾斜杠） |
-| `NEWAPI_TOKEN` | ✅ | 面板 PAT（建议用管理员账号的 PAT 以获得渠道读权限；普通用户 PAT 也能用 read 档的子集） |
-| `NEWAPI_WRITEMODE` | — | `read`（缺省）/ `ops` / `admin` |
-| `NEWAPI_TIMEOUT` | — | HTTP 超时秒数，默认 10 |
+TOML 配置文件，优先级：**内置默认值 < TOML 文件 < 环境变量**。
+
+```toml
+[newapi]
+base_url = "https://newapi.ashou.site"   # 必填
+token = ""                               # 面板 PAT；建议留空用 token_file
+token_file = "/home/radxa/.dsh/newapi.pat" # 读首行作 PAT（0600），密钥不落配置本体
+writemode = "ops"                        # read / ops / admin
+timeout_seconds = 10
+```
+
+- 加载：`newapi-mcp --config <path>`；不传则只用默认值+环境变量（向后兼容原 env 方式）
+- 环境变量覆盖：`NEWAPI_BASE_URL` / `NEWAPI_TOKEN` / `NEWAPI_WRITEMODE` / `NEWAPI_TIMEOUT`
+- 配置模块自带单测（TOML 解析/env 覆盖/token_file/校验），示例见 `newapi-mcp.example.toml`
 
 DSH 挂载（cordis.patch.yml，改后需重启 DSH 生效）：
 
@@ -151,12 +163,12 @@ mcp-newapi:
   config:
     serverName: newapi
     transport: stdio
-    command: /home/radxa/.dsh/mcp-newapi-wrapper.sh   # PAT 从 ~/.dsh/newapi.pat (0600) 读取
+    command: /home/radxa/.dsh/mcp-newapi-wrapper.sh   # exec newapi-mcp --config ~/.dsh/newapi-mcp.toml
     args: []
-# wrapper 内 export NEWAPI_WRITEMODE=ops（read/ops/admin 三档）
+# 生产配置在 ~/.dsh/newapi-mcp.toml（0600）：base_url + token_file(~/.dsh/newapi.pat) + writemode
 ```
 
-> 注意：token 写进 cordis.patch.yml 即落入 `~/.dsh/`，属本机私有配置，不入 git。
+> 注意：PAT 经 token_file 引用 `~/.dsh/newapi.pat`（0600），不写进配置文件本体，不进 git。
 
 ## 7. 安全设计（实现修订）
 
@@ -165,7 +177,7 @@ mcp-newapi:
 3. **删除类工具带 `confirm` 必填参数**（delete_token/delete_channel），不传直接拒绝。
 4. **不暴露 option/redemption**：全局运营配置的修改风险远大于收益；也不封装多 key 渠道的 key 追加模式。
 5. **PAT 权限天然继承**：MCP 能做的最多等于该 PAT 账号在面板里能做的，不额外放大权限。
-6. **日志与凭据**：MCP 进程自身不打请求体日志（避免 key 落盘）；PAT 存 `~/.dsh/newapi.pat`（0600），不进 cordis.patch.yml、不进 git。
+6. **日志与凭据**：MCP 进程自身不打请求体日志（避免 key 落盘）；PAT 经配置 `token_file` 引用 `~/.dsh/newapi.pat`（0600），不进配置文件本体、不进 git。
 
 ## 8. 实现里程碑（进度）
 
@@ -173,11 +185,13 @@ mcp-newapi:
 2. ✅ **M2 read 档**：8 工具 + 掩码层，全部对实装端点核对（发现：PUT status 被上游拒绝、pricing 被实例禁用、/api/data/ 为聚合数据源）。
 3. ✅ **M3 ops 档**：渠道测试/启停/余额/全量测试 + 令牌管理（创建后按名回查 id+掩码），分层重构（§5）。
 4. ✅ **M4 admin 档**：渠道 CRUD（创建带 key 只进不出；更新 PATCH 语义；删除 confirm），全闭环实测（创建 id=108 → 更新 → 删除）。
-5. ⬜ **M5 可选打磨**：README、单元测试（client 解包/掩码）、（可选）Streamable HTTP 传输。
+5. ✅ **M5 打磨**：README、单元测试（client 解包/掩码/状态语义 + config 模块）。
+6. ✅ **M6 架构升级**：internal/config 配置模块（TOML，默认<文件<env，token_file 间接引用）+ registry.go 表驱动注册（17 工具唯一汇总表）；生产配置 ~/.dsh/newapi-mcp.toml，wrapper 简化为 --config 启动。
+7. ⬜ **M7 可选**：Streamable HTTP 传输、admin 档生产启用。
 
 ## 9. 验收场景
 
 - Agent 问「网关现在有哪些模型、glm-5.3 走哪个渠道」→ `newapi_list_models` + `newapi_list_channels`。
-- Agent 巡检：「测试所有启用渠道并汇报失败的」→ `newapi_batch_test_channels`。
+- Agent 巡检：「测试所有启用渠道并汇报失败的」→ `newapi_test_all_channels`。
 - Agent 运维：「渠道 X 余额快用完了/持续 5xx，先禁用它」→ `newapi_test_channel` → `newapi_set_channel_status`。
 - Agent 记账：「最近 7 天各模型消费多少」→ `newapi_usage_summary`。

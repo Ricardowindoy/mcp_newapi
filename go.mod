@@ -2,7 +2,10 @@ module mcp_newapi
 
 go 1.26.6
 
-require github.com/mark3labs/mcp-go v0.58.0
+require (
+	github.com/BurntSushi/toml v1.4.0
+	github.com/mark3labs/mcp-go v0.58.0
+)
 
 require (
 	github.com/google/jsonschema-go v0.4.2 // indirect

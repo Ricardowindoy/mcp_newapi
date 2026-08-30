@@ -1,6 +1,7 @@
 package mcp
 
-// tools_read.go read 档工具（8 个）。薄壳：参数解析 → 调 internal/newapi 对应域方法 → jsonResult 输出。
+// tools_read.go read 档工具 handler 实现（声明见 registry.go）。
+// 薄壳：参数解析 → 调 internal/newapi 对应域方法 → jsonResult 输出。
 
 import (
 	"context"

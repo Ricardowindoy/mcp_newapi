@@ -9,50 +9,8 @@ import (
 	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
-
 	"mcp_newapi/internal/newapi"
 )
-
-// registerOpsTools 注册 ops 档工具（写操作，需 NEWAPI_WRITEMODE=ops/admin）。
-func registerOpsTools(s *server.MCPServer, client *newapi.Client) {
-	s.AddTool(mcp.NewTool("newapi_test_channel",
-		mcp.WithDescription("对单个渠道发一次测试请求，返回是否成功、耗时（秒）与错误信息。测试失败是有效结果（success:false），不代表调用出错。"),
-		mcp.WithNumber("id", mcp.Required(), mcp.Description("渠道 ID")),
-		mcp.WithString("model", mcp.Description("测试用的模型名；缺省用渠道默认测试模型")),
-	), testChannelHandler(client))
-
-	s.AddTool(mcp.NewTool("newapi_test_all_channels",
-		mcp.WithDescription("触发全量渠道测试（异步系统任务），返回 task_id。结果可在面板任务中心或稍后用 newapi_list_channels 观察响应时间/状态。"),
-	), testAllHandler(client))
-
-	s.AddTool(mcp.NewTool("newapi_update_channel_balance",
-		mcp.WithDescription("刷新单个渠道的余额（部分渠道类型不支持，会返回业务错误）。"),
-		mcp.WithNumber("id", mcp.Required(), mcp.Description("渠道 ID")),
-	), updateBalanceHandler(client))
-
-	s.AddTool(mcp.NewTool("newapi_set_channel_status",
-		mcp.WithDescription("启用或禁用渠道（记录为 manual operation）。返回是否有实际变更。"),
-		mcp.WithNumber("id", mcp.Required(), mcp.Description("渠道 ID")),
-		mcp.WithBoolean("enabled", mcp.Required(), mcp.Description("true=启用 false=禁用")),
-	), setChannelStatusHandler(client))
-
-	s.AddTool(mcp.NewTool("newapi_create_token",
-		mcp.WithDescription("创建一个 API 令牌（sk- key）。返回 id 与掩码 key；完整 key 请在面板查看。"),
-		mcp.WithString("name", mcp.Required(), mcp.Description("令牌名称（≤50 字符）")),
-		mcp.WithBoolean("unlimited_quota", mcp.Description("无限额度，默认 false")),
-		mcp.WithNumber("remain_quota", mcp.Description("额度（quota 单位，500000=$1）；unlimited 时忽略")),
-		mcp.WithNumber("expired_time", mcp.Description("过期 Unix 时间戳（秒）；-1 或缺省=永不过期")),
-		mcp.WithString("model_limits", mcp.Description("模型限制，逗号分隔模型名")),
-		mcp.WithString("group", mcp.Description("分组，缺省 default")),
-	), createTokenHandler(client))
-
-	s.AddTool(mcp.NewTool("newapi_delete_token",
-		mcp.WithDescription("删除当前用户的 API 令牌（不可恢复）。必须显式传 confirm=true。"),
-		mcp.WithNumber("id", mcp.Required(), mcp.Description("令牌 ID")),
-		mcp.WithBoolean("confirm", mcp.Required(), mcp.Description("必须为 true 才执行删除")),
-	), deleteTokenHandler(client))
-}
 
 func testChannelHandler(client *newapi.Client) toolHandler {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {

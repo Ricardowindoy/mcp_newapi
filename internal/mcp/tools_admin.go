@@ -1,6 +1,6 @@
 package mcp
 
-// tools_admin.go admin 档工具（3 个，渠道 CRUD）。需 NEWAPI_WRITEMODE=admin。
+// tools_admin.go admin 档工具 handler 实现（声明见 registry.go）。渠道 CRUD，需 writemode=admin。
 // 安全约定：创建/更新传 key 是调用方显式行为；删除需 confirm=true。
 
 import (
@@ -8,48 +8,8 @@ import (
 	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
-
 	"mcp_newapi/internal/newapi"
 )
-
-// registerAdminTools 注册 admin 档工具。
-func registerAdminTools(s *server.MCPServer, client *newapi.Client) {
-	s.AddTool(mcp.NewTool("newapi_create_channel",
-		mcp.WithDescription("创建渠道（admin）。需提供名称/类型/key/模型列表；创建后按名称回查返回渠道 id。key 只在此请求中传输。"),
-		mcp.WithString("name", mcp.Required(), mcp.Description("渠道名称")),
-		mcp.WithNumber("type", mcp.Required(), mcp.Description("渠道类型：1=OpenAI 兼容 等")),
-		mcp.WithString("key", mcp.Required(), mcp.Description("上游 API key（仅在创建请求中传输）")),
-		mcp.WithString("models", mcp.Required(), mcp.Description("模型列表，逗号分隔")),
-		mcp.WithString("base_url", mcp.Description("上游 base URL（OpenAI 兼容网关填此项）")),
-		mcp.WithString("group", mcp.Description("分组，逗号分隔，默认 default")),
-		mcp.WithString("model_mapping", mcp.Description("模型重定向 JSON，如 {\"alias\":\"real\"}")),
-		mcp.WithNumber("priority", mcp.Description("优先级")),
-		mcp.WithNumber("weight", mcp.Description("权重")),
-		mcp.WithString("test_model", mcp.Description("测试模型名")),
-	), createChannelHandler(client))
-
-	s.AddTool(mcp.NewTool("newapi_update_channel",
-		mcp.WithDescription("更新渠道（admin，PATCH 语义：只传要改的字段）。注意：不能改 status（用 newapi_set_channel_status）；key 留空则不修改。"),
-		mcp.WithNumber("id", mcp.Required(), mcp.Description("渠道 ID")),
-		mcp.WithString("name", mcp.Description("新名称")),
-		mcp.WithString("key", mcp.Description("新 key（留空不修改；多 key 渠道慎用）")),
-		mcp.WithString("models", mcp.Description("模型列表，逗号分隔")),
-		mcp.WithString("base_url", mcp.Description("上游 base URL")),
-		mcp.WithString("group", mcp.Description("分组")),
-		mcp.WithString("model_mapping", mcp.Description("模型重定向 JSON")),
-		mcp.WithNumber("priority", mcp.Description("优先级")),
-		mcp.WithNumber("weight", mcp.Description("权重")),
-		mcp.WithString("test_model", mcp.Description("测试模型名")),
-		mcp.WithNumber("type", mcp.Description("渠道类型")),
-	), updateChannelHandler(client))
-
-	s.AddTool(mcp.NewTool("newapi_delete_channel",
-		mcp.WithDescription("删除渠道（admin，不可恢复）。必须显式传 confirm=true。"),
-		mcp.WithNumber("id", mcp.Required(), mcp.Description("渠道 ID")),
-		mcp.WithBoolean("confirm", mcp.Required(), mcp.Description("必须为 true 才执行删除")),
-	), deleteChannelHandler(client))
-}
 
 func createChannelHandler(client *newapi.Client) toolHandler {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
