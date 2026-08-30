@@ -24,7 +24,7 @@ func NewServer(client *newapi.Client, writemode string) *server.MCPServer {
 	registerReadTools(s, client) // read 档始终注册
 	switch writemode {
 	case ModeAdmin:
-		// M4: registerAdminTools(s, client)
+		registerAdminTools(s, client)
 		fallthrough
 	case ModeOps:
 		registerOpsTools(s, client)

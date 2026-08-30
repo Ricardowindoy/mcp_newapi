@@ -22,4 +22,7 @@ const (
 	RouteChannelStatus  = "/api/channel/%d/status" // 启停渠道 {status:1|2}
 	RouteTokenSearch    = "/api/token/search"      // 按关键字搜令牌
 	RouteTokenID        = "/api/token/%d"          // 删除令牌
+
+	// admin 档（渠道 CRUD）
+	// RouteChannels 复用：POST /api/channel/ 创建、PUT /api/channel/ 更新（PATCH 语义）
 )
