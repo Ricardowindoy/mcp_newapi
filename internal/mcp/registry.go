@@ -34,7 +34,7 @@ type toolDef struct {
 
 // toolRegistry —— 对外服务汇总表（唯一索引）。
 var toolRegistry = []toolDef{
-	// ============ read 档（11） ============
+	// ============ read 档（13） ============
 	{
 		Name: "newapi_status", Tier: tierRead,
 		Options: []mcp.ToolOption{
@@ -126,6 +126,23 @@ var toolRegistry = []toolDef{
 			mcp.WithString("token_name", mcp.Description("按令牌名过滤")),
 		},
 		Handler: handler.SuccessRateHandler,
+	},
+	{
+		Name: "newapi_autoban_config", Tier: tierRead,
+		Options: []mcp.ToolOption{
+			mcp.WithDescription("autoban 配置一次性总览（只读，需管理员 PAT）：全局开关 AutomaticDisableChannelEnabled、禁用/重试状态码、禁用关键词、monitor_setting.* 测试模式与阈值、ChannelDisableThreshold，并普查渠道级 auto_ban（on/off/unset 计数 + 未开启渠道清单——NULL 会被上游视为关，是『ban 不生效』的常见根因）。写入口：全局开关与关键词用 newapi_update_option、状态码用 newapi_autoban_codes、渠道级用 newapi_update_channel(auto_ban)。"),
+		},
+		Handler: handler.AutobanConfigHandler,
+	},
+	{
+		Name: "newapi_autoban_analysis", Tier: tierRead,
+		Options: []mcp.ToolOption{
+			mcp.WithDescription("自动封禁原因分析数据获取（只读，需管理员 PAT）：默认分析所有 status=3 自动禁用或带 status_reason 的渠道（可传 channel 指定任意渠道）；拉时间窗内 type=5 错误日志，精确错误总数 + 近期采样按错误内容/模型聚合，附 status_reason/balance/auto_ban/test_model 与 likely_cause 启发式分类（quota/model/timeout/unreachable）。排查『为什么被自动封禁』用这个。"),
+			mcp.WithNumber("channel", mcp.Description("指定渠道 ID（缺省=全部自动禁用/带 status_reason 渠道）")),
+			mcp.WithNumber("hours", mcp.Description("错误日志回溯窗口小时数，默认 24（1-720）"), mcp.DefaultNumber(24)),
+			mcp.WithNumber("sample", mcp.Description("每渠道错误采样条数，默认 10（1-50）"), mcp.DefaultNumber(10)),
+		},
+		Handler: handler.AutobanAnalysisHandler,
 	},
 	{
 		Name: "newapi_jiyuan_report", Tier: tierRead,

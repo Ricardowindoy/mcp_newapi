@@ -1,1 +1,1 @@
-{"name": "handler", "summary": "23 个 MCP 工具 handler 薄壳（read/ops/admin/report 四文件）：解析参数→调域函数→统一输出", "paths": ["internal/mcp/handler/**"], "uses": ["domains", "client", "reporter"]}
+{"name": "handler", "summary": "25 个 MCP 工具 handler 薄壳（read/ops/admin/report 四文件）：解析参数→调域函数→统一输出", "paths": ["internal/mcp/handler/**"], "uses": ["domains", "client", "reporter"]}

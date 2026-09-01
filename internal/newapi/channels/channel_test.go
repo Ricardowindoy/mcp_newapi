@@ -79,6 +79,37 @@ func TestListModelMappingNullAndEmpty(t *testing.T) {
 	}
 }
 
+func TestListAutoBanSemantics(t *testing.T) {
+	// auto_ban 三态：null=未设置（nil）/ 0=关 / 1=开——NULL 与 0 必须可区分（ban 不生效排查关键）
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true,"message":"","data":{"page":1,"page_size":20,"total":3,"items":[
+			{"id":1,"name":"a","type":1,"status":1,"models":"m","group":"default","key":"sk-abcd1234efgh7890","auto_ban":null},
+			{"id":2,"name":"b","type":1,"status":1,"models":"m","group":"default","key":"sk-abcd1234efgh7890","auto_ban":0},
+			{"id":3,"name":"c","type":1,"status":1,"models":"m","group":"default","key":"sk-abcd1234efgh7890","auto_ban":1}]}}`))
+	}))
+	t.Cleanup(srv.Close)
+	c := newapi.NewClient(srv.URL, "test-pat", 0)
+
+	res, err := List(context.Background(), c, 1, 20, 0)
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if res.Items[0].AutoBan != nil {
+		t.Errorf("null 应为 nil（未设置），got %v", *res.Items[0].AutoBan)
+	}
+	b1, _ := json.Marshal(res.Items[0])
+	if jsonContains(t, b1, "auto_ban") {
+		t.Errorf("未设置不应输出 auto_ban 字段: %s", b1)
+	}
+	if res.Items[1].AutoBan == nil || *res.Items[1].AutoBan != 0 {
+		t.Errorf("0 应解析为指向 0 的指针，got %v", res.Items[1].AutoBan)
+	}
+	if res.Items[2].AutoBan == nil || *res.Items[2].AutoBan != 1 {
+		t.Errorf("1 应解析为指向 1 的指针，got %v", res.Items[2].AutoBan)
+	}
+}
+
 func jsonContains(t *testing.T, data []byte, key string) bool {
 	t.Helper()
 	var m map[string]any

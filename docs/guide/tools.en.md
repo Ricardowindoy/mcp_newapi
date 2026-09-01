@@ -2,7 +2,7 @@
 
 > [中文](tools.md) | English
 
-Parameters and semantics of all 23 tools. The tier is decided by `writemode`: **read = 11 tools (registered by default) / ops +6 / admin +6**; lower tiers do not register higher-tier tools.
+Parameters and semantics of all 25 tools. The tier is decided by `writemode`: **read = 13 tools (registered by default) / ops +6 / admin +6**; lower tiers do not register higher-tier tools.
 
 ## Common Conventions
 
@@ -72,6 +72,24 @@ Request success rate: ratio of log `type=2` (consumption) vs `type=5` (error) co
 | `model_name` / `token_name` | string | — | Filter by model / token name |
 
 Note: upstream retries produce multiple error-log entries for one request, so the rate is an **approximation**.
+
+### `newapi_autoban_config`
+One-shot autoban configuration overview (read-only, requires an admin PAT), no parameters. Returns:
+
+- `options`: all system-setting key/values in the auto-disable ecosystem (`AutomaticDisableChannelEnabled` / `AutomaticDisableStatusCodes` / `AutomaticRetryStatusCodes` / `AutomaticDisableKeywords` / `AutomaticEnableChannelEnabled` / `ChannelDisableThreshold` / `RetryTimes` / `monitor_setting.*` / `channel_affinity_setting.*`), plus the `global_switch_enabled` boolean shortcut
+- `channels_auto_ban`: channel-level auto_ban census — `on` / `off` / `unset` counts + the `not_enabled` list (with reasons). **`unset` (upstream NULL) is treated as off** — a common root cause of "out-of-credit channels never get auto-disabled" (the gorm default only covers newly created rows)
+- `note`: write-entry pointers — global switch & keywords via `newapi_update_option`, status codes via `newapi_autoban_codes`, channel-level via `newapi_update_channel(auto_ban)`
+
+### `newapi_autoban_analysis`
+Auto-ban reason analysis data fetch (read-only, requires an admin PAT). Use this to investigate "why was this channel auto-disabled".
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `channel` | number | — | Specific channel ID; default = all channels with status=3 (auto-disabled) or a non-empty status_reason (including manually re-enabled ones with a lingering reason) |
+| `hours` | number | — | Error-log lookback window, default 24 (1–720) |
+| `sample` | number | — | Error samples per channel, default 10 (1–50) |
+
+Per channel it returns: `status` / `status_reason` / `balance` / `auto_ban` / `models` / `test_model` plus, for type=5 error logs within the window: `errors_total` (exact count), `by_content` (top 5 grouped by error content, with last_seen), `by_model` (top 5), `last_error_at`, and `likely_cause` (heuristic: `quota_exhausted` → `model_issue` → `timeout` → `upstream_unreachable` → `other`, first keyword hit wins; `no_error_logs` = no errors in window). Treat `likely_cause` as a hint — `by_content` samples are the ground truth; cross-check the current config with `newapi_autoban_config`.
 
 ### `newapi_jiyuan_report`
 Jiyuan channel consumption report (requires an admin PAT + the `[report]` replica configuration; unconfigured calls fail with an explicit error). Default window = today + the previous 3 days.

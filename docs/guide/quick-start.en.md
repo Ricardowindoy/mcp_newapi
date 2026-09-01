@@ -39,7 +39,7 @@ Once mounted, the client's tool list should show 11 read-tier tools including `n
 
 ## 4. Next Steps
 
-- **[Tools Reference](tools.en.md)** — parameters, examples, and caveats for all 23 tools
+- **[Tools Reference](tools.en.md)** — parameters, examples, and caveats for all 25 tools
 - **[Configuration Reference](configuration.en.md)** — TOML file, full environment-variable table, and the reporting read replica `[report]` section
 - **[Client Integration](client-integration.en.md)** — Claude Desktop / DSH / generic stdio setup and tier selection
 - **[Upstream Compatibility & Known Pitfalls](../design/upstream-compat.en.md)** — recommended reading before wiring up your own new-api deployment

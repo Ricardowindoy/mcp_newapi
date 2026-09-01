@@ -13,7 +13,7 @@ An MCP (Model Context Protocol) server for operating a [new-api](https://github.
 | Doc | Contents |
 |---|---|
 | **[docs/guide/quick-start.en.md](docs/guide/quick-start.en.md)** | Build, configure and mount in 5 minutes |
-| **[docs/guide/tools.en.md](docs/guide/tools.en.md)** | All 23 tools: parameters, examples, caveats |
+| **[docs/guide/tools.en.md](docs/guide/tools.en.md)** | All 25 tools: parameters, examples, caveats |
 | **[docs/guide/configuration.en.md](docs/guide/configuration.en.md)** | Full TOML/env reference incl. `[report]` replica DB |
 | **[docs/guide/client-integration.en.md](docs/guide/client-integration.en.md)** | Claude Desktop / DSH / generic stdio clients |
 | **[docs/design/upstream-compat.en.md](docs/design/upstream-compat.en.md)** | new-api version adaptation & known pitfalls |
@@ -23,7 +23,7 @@ An MCP (Model Context Protocol) server for operating a [new-api](https://github.
 
 ## Features
 
-- **23 tools, 3 permission tiers** (`NEWAPI_WRITEMODE`: `read` 11 / `ops` +6 / `admin` +6) — lower tiers simply **don't register** higher-tier tools
+- **25 tools, 3 permission tiers** (`NEWAPI_WRITEMODE`: `read` 13 / `ops` +6 / `admin` +6) — lower tiers simply **don't register** higher-tier tools
 - **Single Go binary**, mcp-go + stdio transport, zero runtime dependencies
 - **Key safety**: full keys never appear in any response (masked head/tail 4 chars); destructive/high-impact tools require explicit `confirm=true`
 - **Optional reporting**: `jiyuan_report` aggregates channel spend directly from a MySQL read replica (`[report]` config; absent → tool errors clearly, everything else works)
@@ -55,6 +55,8 @@ Full walkthrough (TOML config, `token_file` secret indirection) in **[docs/guide
 | read | `newapi_pricing` | Model ratios (may be disabled per instance) |
 | read | `newapi_list_options` | System options (sensitive keys filtered upstream) |
 | read | `newapi_success_rate` | Request success rate from log counts |
+| read | `newapi_autoban_config` | Autoban config overview (global switch / codes / keywords + per-channel auto_ban census) |
+| read | `newapi_autoban_analysis` | Auto-ban reason analysis data (error-log aggregation + likely_cause heuristic) |
 | read | `newapi_jiyuan_report` | Channel spend report (replica DB aggregation, needs `[report]`) |
 | ops | `newapi_test_channel` / `newapi_test_all_channels` | Single / all-channel tests |
 | ops | `newapi_update_channel_balance` | Refresh channel balance |
@@ -71,7 +73,7 @@ Per-tool parameters and response examples: **[docs/guide/tools.en.md](docs/guide
 
 ```
 internal/config/   config loading (TOML: defaults < file < env, token_file indirection)
-internal/mcp/      tool layer: registry.go (single table, 23 tools) + handler/ subpackage
+internal/mcp/      tool layer: registry.go (single table, 25 tools) + handler/ subpackage
 internal/newapi/   API layer: client.go transport + routes.go endpoint coupling point
   └─ domain pkgs: status/ models/ channels/ tokens/ logs/ options/
 internal/reporter/ reporting leaf package (direct replica aggregation, DSN via config)

@@ -1,1 +1,1 @@
-{"name": "registry", "summary": "工具注册层：toolRegistry 表驱动汇总表（23 工具唯一索引）+ writemode 档位过滤装配", "paths": ["internal/mcp/registry.go", "internal/mcp/server.go", "internal/mcp/registry_test.go"], "uses": ["handler", "client"]}
+{"name": "registry", "summary": "工具注册层：toolRegistry 表驱动汇总表（25 工具唯一索引）+ writemode 档位过滤装配", "paths": ["internal/mcp/registry.go", "internal/mcp/server.go", "internal/mcp/registry_test.go"], "uses": ["handler", "client"]}

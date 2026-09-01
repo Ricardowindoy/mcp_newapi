@@ -13,7 +13,7 @@
 | 文档 | 内容 |
 |---|---|
 | **[docs/guide/quick-start.md](docs/guide/quick-start.md)**（[EN](docs/guide/quick-start.en.md)） | 5 分钟构建 + 配置 + 挂载 |
-| **[docs/guide/tools.md](docs/guide/tools.md)**（[EN](docs/guide/tools.en.md)） | 23 个工具参数/示例/注意事项 |
+| **[docs/guide/tools.md](docs/guide/tools.md)**（[EN](docs/guide/tools.en.md)） | 25 个工具参数/示例/注意事项 |
 | **[docs/guide/configuration.md](docs/guide/configuration.md)**（[EN](docs/guide/configuration.en.md)） | TOML/env 全字段 + `[report]` 报表从库 |
 | **[docs/guide/client-integration.md](docs/guide/client-integration.md)**（[EN](docs/guide/client-integration.en.md)） | Claude Desktop / DSH / 通用 stdio 接入 |
 | **[docs/design/upstream-compat.md](docs/design/upstream-compat.md)**（[EN](docs/design/upstream-compat.en.md)） | new-api 上游已知坑与维护映射 |
@@ -24,7 +24,7 @@
 
 ## 特性
 
-- **23 个工具，三档权限**（`NEWAPI_WRITEMODE`：`read` 11 个 / `ops` +6 / `admin` +6），低档**不注册**写工具
+- **25 个工具，三档权限**（`NEWAPI_WRITEMODE`：`read` 13 个 / `ops` +6 / `admin` +6），低档**不注册**写工具
 - **Go 单二进制**，mcp-go + stdio 传输，无运行时依赖
 - **密钥安全**：任何响应不透出完整 key（掩码头尾 4 位）；删除/高危变更强制 `confirm=true`
 - **可选报表**：`jiyuan_report` 直连 MySQL 从库聚合渠道消费（`[report]` 配置，缺省不影响其他工具）
@@ -56,6 +56,8 @@ export NEWAPI_WRITEMODE=read                          # read(默认)/ops/admin
 | read | `newapi_pricing` | 模型倍率（实例可能禁用） |
 | read | `newapi_list_options` | 系统设置键值对（上游已脱敏） |
 | read | `newapi_success_rate` | 请求成功率（日志 type=2/5 计数，支持渠道/模型/令牌过滤） |
+| read | `newapi_autoban_config` | autoban 配置总览（全局开关/状态码/关键词 + 渠道级 auto_ban 普查） |
+| read | `newapi_autoban_analysis` | 自动封禁原因分析数据（错误日志聚合 + likely_cause 启发式） |
 | read | `newapi_jiyuan_report` | 基元渠道消费报表（从库 logs×价格快照聚合，需 [report] 配置） |
 | ops | `newapi_test_channel` / `newapi_test_all_channels` | 单渠道/全量测试 |
 | ops | `newapi_update_channel_balance` | 刷新渠道余额 |
@@ -72,7 +74,7 @@ export NEWAPI_WRITEMODE=read                          # read(默认)/ops/admin
 
 ```
 internal/config/   配置模块（TOML：默认 < 文件 < 环境变量，token_file 间接引用）
-internal/mcp/      工具层：registry.go 表驱动汇总表（23 工具唯一索引）+ handler/ 子包
+internal/mcp/      工具层：registry.go 表驱动汇总表（25 工具唯一索引）+ handler/ 子包
 internal/newapi/   API 层：client.go 传输 + routes.go 端点耦合点
   └─ 域子包：status/ models/ channels/(读+运维+管理+标签) tokens/ logs/ options/(系统设置+状态码代数)
 internal/reporter/ 报表域：直连从库聚合消费报表（叶子包，DSN 经 config 注入）

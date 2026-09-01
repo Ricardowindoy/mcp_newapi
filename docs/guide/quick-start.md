@@ -39,7 +39,7 @@ export NEWAPI_WRITEMODE=read                          # read(默认) / ops / adm
 
 ## 4. 下一步
 
-- **[工具参考](tools.md)** —— 23 个工具的参数、示例与注意事项
+- **[工具参考](tools.md)** —— 25 个工具的参数、示例与注意事项
 - **[配置参考](configuration.md)** —— TOML 文件、环境变量全表、报表从库 `[report]` 段
 - **[客户端接入](client-integration.md)** —— Claude Desktop / DSH / 通用 stdio 接入与档位选型
 - **[上游兼容与已知坑](../design/upstream-compat.md)** —— 对接自己 new-api 部署前建议先读

@@ -4,6 +4,13 @@
 
 All milestones shipped on **2026-08-30** as a single-day build-out; each entry lists 中文 + English.
 
+## 0.6.0 — 2026-09-01（autoban 分析与配置总览，23 → 25 工具）
+
+- 新增 `newapi_autoban_config`（read 档）：autoban 配置一次性总览——全局开关/禁用与重试状态码/关键词/monitor_setting/ChannelDisableThreshold + 渠道级 auto_ban 普查（on/off/unset 计数与未开启清单；NULL 视为关是 ban 不生效的常见根因）
+- 新增 `newapi_autoban_analysis`（read 档）：自动封禁原因分析数据获取——默认分析 status=3 或带 status_reason 的渠道，窗口内 type=5 错误日志精确计数 + 采样按内容/模型聚合 + likely_cause 启发式（quota/model/timeout/unreachable）
+- 渠道 Summary 新增 `auto_ban`（*int 保留 NULL/0/1 三态语义）；版本号 0.5.0 → 0.6.0
+- EN: Added `newapi_autoban_config` (one-shot autoban config overview incl. per-channel auto_ban census) and `newapi_autoban_analysis` (auto-ban reason analysis data: exact error totals, sampled aggregation by content/model, likely_cause heuristic) as read-tier tools; channel Summary now carries `auto_ban` (*int preserving NULL/0/1); version 0.5.0 → 0.6.0.
+
 ## Unreleased — 2026-09-01（渠道 model_mapping 回传）
 
 - 渠道 `Summary` DTO 新增 `model_mapping`：`newapi_list_channels` / `newapi_get_channel` 随读返回（上游 JSON 字符串原样，`null`→空串，`omitempty` 无映射不出字段）；`newapi_create_channel` / `newapi_update_channel` 成功回显含改后映射（空串=已清空）

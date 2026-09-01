@@ -15,6 +15,7 @@ import (
 // Summary 是渠道列表/详情的裁剪 DTO。
 // key 已在构造时掩码；完整 key 永不出本包。
 // model_mapping 为上游 JSON 字符串原样（""=无映射），非敏感、随读返回。
+// auto_ban 指针语义：nil=上游 NULL 未设置（GetAutoBan() 视为关，gorm default 只覆盖新建行），1=开 0=关。
 type Summary struct {
 	ID           int     `json:"id"`
 	Name         string  `json:"name"`
@@ -31,7 +32,8 @@ type Summary struct {
 	TestModel    string  `json:"test_model,omitempty"`
 	ResponseTime int     `json:"response_time"` // ms，0=未测
 	UsedQuota    float64 `json:"used_quota"`
-	Key          string  `json:"key"` // 掩码后
+	AutoBan      *int    `json:"auto_ban,omitempty"` // nil=未设置 1=开 0=关
+	Key          string  `json:"key"`                // 掩码后
 }
 
 type raw struct {
@@ -50,6 +52,7 @@ type raw struct {
 	TestModel    string  `json:"test_model"`
 	ResponseTime int     `json:"response_time"`
 	UsedQuota    float64 `json:"used_quota"`
+	AutoBan      *int    `json:"auto_ban"` // 上游 *int：null=未设置
 	OtherInfo    string  `json:"other_info"`
 }
 
@@ -59,7 +62,7 @@ func (r raw) toSummary() Summary {
 		Balance: r.Balance, BaseURL: r.BaseURL, Models: r.Models,
 		Group: r.Group, ModelMapping: r.ModelMapping, Priority: r.Priority, Weight: r.Weight,
 		TestModel: r.TestModel, ResponseTime: r.ResponseTime,
-		UsedQuota: r.UsedQuota, Key: newapi.MaskKey(r.Key),
+		UsedQuota: r.UsedQuota, AutoBan: r.AutoBan, Key: newapi.MaskKey(r.Key),
 	}
 	// status_reason 藏在 other_info JSON 里
 	if r.OtherInfo != "" {

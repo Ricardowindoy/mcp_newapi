@@ -2,7 +2,7 @@
 
 > [English](tools.en.md) | 中文
 
-全部 23 个工具的参数与语义。档位由 `writemode` 决定：**read 11 个（默认注册）/ ops +6 / admin +6**，低档不注册高档工具。
+全部 25 个工具的参数与语义。档位由 `writemode` 决定：**read 13 个（默认注册）/ ops +6 / admin +6**，低档不注册高档工具。
 
 ## 通用约定
 
@@ -15,7 +15,7 @@
 
 ---
 
-## read 档（11 个，默认注册）
+## read 档（13 个，默认注册）
 
 ### `newapi_status`
 站点公开状态：版本、启动时间、注册开关；附带一次 `/v1/models` 探测（5s 独立超时），**返回 401/403 也算 relay 活着**（能应答即可达）。无需 PAT。
@@ -72,6 +72,24 @@
 | `model_name` / `token_name` | string | — | 按模型 / 令牌名过滤 |
 
 注意：上游重试会对同一请求产生多条错误日志，比率为**近似值**。
+
+### `newapi_autoban_config`
+autoban 配置一次性总览（只读，需管理员 PAT），无参数。返回：
+
+- `options`：自动封禁生态的全部系统设置键值（`AutomaticDisableChannelEnabled` / `AutomaticDisableStatusCodes` / `AutomaticRetryStatusCodes` / `AutomaticDisableKeywords` / `AutomaticEnableChannelEnabled` / `ChannelDisableThreshold` / `RetryTimes` / `monitor_setting.*` / `channel_affinity_setting.*`），并附 `global_switch_enabled` 布尔快捷判断
+- `channels_auto_ban`：渠道级 auto_ban 普查——`on` / `off` / `unset` 计数 + `not_enabled` 清单（含原因）。**`unset`（上游 NULL）会被视为关**，是「欠费渠道不被自动禁用」的常见根因（gorm default 只覆盖新建行）
+- `note`：写入口指引——全局开关与关键词 `newapi_update_option`、状态码 `newapi_autoban_codes`、渠道级 `newapi_update_channel(auto_ban)`
+
+### `newapi_autoban_analysis`
+自动封禁原因分析数据获取（只读，需管理员 PAT）。排查「渠道为什么被自动封禁」用这个。
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `channel` | number | — | 指定渠道 ID；缺省=全部 status=3（自动禁用）或带 status_reason 的渠道（含手动恢复后原因残留的） |
+| `hours` | number | — | 错误日志回溯窗口，默认 24（1–720） |
+| `sample` | number | — | 每渠道错误采样条数，默认 10（1–50） |
+
+每渠道返回：`status` / `status_reason` / `balance` / `auto_ban` / `models` / `test_model` + 窗口内 type=5 错误日志的 `errors_total`（精确计数）、`by_content`（按错误内容聚合 top5，含 last_seen）、`by_model`（top5）、`last_error_at`、`likely_cause`（启发式：`quota_exhausted` → `model_issue` → `timeout` → `upstream_unreachable` → `other`，关键词首中；`no_error_logs` = 窗口内无错误）。`likely_cause` 仅供参考，以 `by_content` 采样明细为准；当前配置用 `newapi_autoban_config` 对照。
 
 ### `newapi_jiyuan_report`
 基元渠道消费报表（需管理员 PAT + `[report]` 从库配置；未配置时调用明确报错）。默认区间=今天+前 3 天。

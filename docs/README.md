@@ -8,7 +8,7 @@
 |---|---|---|
 | 快速上手 | [quick-start.md](guide/quick-start.md) | [quick-start.en.md](guide/quick-start.en.md) |
 | 配置参考 | [configuration.md](guide/configuration.md) | [configuration.en.md](guide/configuration.en.md) |
-| 工具参考（23 个） | [tools.md](guide/tools.md) | [tools.en.md](guide/tools.en.md) |
+| 工具参考（25 个） | [tools.md](guide/tools.md) | [tools.en.md](guide/tools.en.md) |
 | 客户端接入 | [client-integration.md](guide/client-integration.md) | [client-integration.en.md](guide/client-integration.en.md) |
 
 ## design/ — 设计与上游兼容

@@ -2,7 +2,7 @@
 
 > 一个用于操作 [new-api](https://github.com/QuantumNous/new-api) 网关的 MCP (Model Context Protocol) 服务器，让 Agent 能够读取 new-api 运行状态、管理渠道/令牌/用户，并对网关进行受控运维操作。
 
-- **版本**：v0.2（实现对齐至 M8，23 工具）
+- **版本**：v0.6（实现对齐至 0.6.0，25 工具）
 - **目标部署**：本机 DSH（DeepSeek Harness，127.0.0.1:3082）作为 MCP client，经 cordis.patch.yml 挂载；new-api 实例为 newapi.ashou.site（及任意 OpenAI 风格 new-api 部署）。
 
 ---
@@ -104,7 +104,7 @@ new-api 是流行的 LLM 聚合分发网关（渠道管理、令牌分发、计�
 
 ```
 ┌─ internal/mcp/（工具层·薄壳）────────────────────────────────┐
-│ registry.go    ★对外服务汇总表（表驱动）：23 个工具的唯一声明  │
+│ registry.go    ★对外服务汇总表（表驱动）：25 个工具的唯一声明  │
 │                （Name/Tier/描述/参数/Handler 工厂）           │
 │ server.go      装配：遍历表按 writemode 过滤注册              │
 │ ── handler/ 子包（handler 实现，全部薄壳）────────────────    │
@@ -187,7 +187,7 @@ mcp-newapi:
 ## 7. 安全设计（实现修订）
 
 1. **掩码原则**：所有工具返回中的上游渠道 key、sk- 令牌值一律掩码（保留头尾各 4 位）。渠道详情端点上游本就不回 key；令牌完整 key 创建后只在面板可见——**任何 MCP 响应都不透出完整 key**（「创建令牌」返回 id + 掩码，提示去面板复制）。
-2. **能力分档靠不注册**：低档模式下写工具根本不存在，Agent 无法「试探」。当前生产档位：`ops`（17 工具）；`admin` 档（23 工具）按需在 wrapper 里切换。
+2. **能力分档靠不注册**：低档模式下写工具根本不存在，Agent 无法「试探」。当前生产档位：`admin`（25 工具）；`ops` 档（19 工具）/ `read`（13 工具）按需在 wrapper 里切换。
 3. **删除/高危变更类工具带 `confirm` 必填参数**（delete_token / delete_channel / update_option / autoban_codes 变更动作 / tag_channels），不传直接拒绝。
 4. **option 受控封装，redemption 不封装**：系统设置读走上游已脱敏的 `GET /api/option/`（敏感键被上游过滤）；写单键与 autoban 状态码变更要求 confirm。redemption（兑换码）与多 key 渠道的 key 追加模式仍不封装。
 5. **PAT 权限天然继承**：MCP 能做的最多等于该 PAT 账号在面板里能做的，不额外放大权限。
