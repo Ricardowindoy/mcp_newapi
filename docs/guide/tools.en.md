@@ -36,9 +36,12 @@ Paginated channel list (**requires an admin PAT**).
 { "page": 1, "page_size": 20, "total": 42, "items": [
   { "id": 31, "name": "基元2_x", "type": 1, "status": 1, "status_reason": "",
     "balance": 12.5, "base_url": "https://…", "models": "deepseek-v4-pro,…",
-    "group": "default", "priority": 0, "weight": 0, "test_model": "",
+    "group": "default", "model_mapping": "{\"deepseek-v4-flash\":\"deepseek-v4-flash-0731\"}",
+    "priority": 0, "weight": 0, "test_model": "",
     "response_time": 2340, "used_quota": 812345.6, "key": "sk-a***7890" } ] }
 ```
+
+Each channel item includes `model_mapping` (the model-redirect JSON string verbatim, including upstream indentation; omitted when there is no mapping or the upstream value is `null`).
 
 ### `newapi_get_channel`
 Single-channel detail (requires an admin PAT). Parameter: `id` (number, required). Returns the same structure as a single item above.
@@ -111,10 +114,10 @@ Deletes a token (irreversible). Parameters: `id` (required), `confirm` (required
 ## admin Tier (+6, `NEWAPI_WRITEMODE=admin`)
 
 ### `newapi_create_channel`
-Creates a channel. Required: `name` / `type` (1=OpenAI-compatible, etc.) / `key` / `models` (comma-separated); optional: `base_url?`, `group?` (default default), `model_mapping?` (JSON), `priority?`, `weight?`, `test_model?`. The key is transmitted only in this request; the upstream does not return an id, so the tool **looks the channel up by name** and returns its id.
+Creates a channel. Required: `name` / `type` (1=OpenAI-compatible, etc.) / `key` / `models` (comma-separated); optional: `base_url?`, `group?` (default default), `model_mapping?` (JSON), `priority?`, `weight?`, `test_model?`. The key is transmitted only in this request; the upstream does not return an id, so the tool **looks the channel up by name** and returns channel info (id / name / type / status / model_mapping).
 
 ### `newapi_update_channel`
-Updates a channel, **PATCH semantics: only explicitly passed fields are sent**. Parameters: `id` required; the rest optional: `name?`, `key?` (empty = unchanged; use with care on multi-key channels), `models?`, `base_url?`, `group?`, `model_mapping?`, `priority?`, `weight?`, `test_model?`, `type?`, `auto_ban?` (channel-level auto-disable switch, collected by presence: true→1 / false→0 / absent→unchanged), `tag?` (empty string clears it). **status cannot be changed** — use `newapi_set_channel_status` to enable/disable.
+Updates a channel, **PATCH semantics: only explicitly passed fields are sent**. Parameters: `id` required; the rest optional: `name?`, `key?` (empty = unchanged; use with care on multi-key channels), `models?`, `base_url?`, `group?`, `model_mapping?`, `priority?`, `weight?`, `test_model?`, `type?`, `auto_ban?` (channel-level auto-disable switch, collected by presence: true→1 / false→0 / absent→unchanged), `tag?` (empty string clears it). **status cannot be changed** — use `newapi_set_channel_status` to enable/disable. On success it echoes back `name` / `models` / `priority` / `group` / `model_mapping` (explicitly output; an empty string after the update means the mapping was cleared).
 
 ### `newapi_delete_channel`
 Deletes a channel (irreversible). Parameters: `id`, `confirm` (both required).

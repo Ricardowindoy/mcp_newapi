@@ -4,6 +4,11 @@
 
 All milestones shipped on **2026-08-30** as a single-day build-out; each entry lists 中文 + English.
 
+## Unreleased — 2026-09-01（渠道 model_mapping 回传）
+
+- 渠道 `Summary` DTO 新增 `model_mapping`：`newapi_list_channels` / `newapi_get_channel` 随读返回（上游 JSON 字符串原样，`null`→空串，`omitempty` 无映射不出字段）；`newapi_create_channel` / `newapi_update_channel` 成功回显含改后映射（空串=已清空）
+- EN: Channel `Summary` DTO now carries `model_mapping` — returned by `newapi_list_channels` / `newapi_get_channel` (upstream JSON string verbatim, `null`→empty, omitted via `omitempty` when absent); `newapi_create_channel` / `newapi_update_channel` echo the post-write mapping (empty string = cleared).
+
 ## M8 — 2026-08-30（17 → 23 工具）
 
 - 新增 options 域：系统设置读写（上游敏感键过滤）+ autoban 状态码区间代数（add/remove/set，规范形输出）

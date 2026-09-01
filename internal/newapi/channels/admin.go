@@ -51,7 +51,8 @@ func Create(ctx context.Context, c *newapi.Client, req UpsertReq) (*Summary, err
 			return &ch, nil
 		}
 	}
-	return &Summary{Name: req.Name, Type: req.Type, Status: 1}, nil
+	// 兜底：按名回查不到（如渠道列表被过滤），以请求值构造回显，不带 id
+	return &Summary{Name: req.Name, Type: req.Type, Status: 1, ModelMapping: req.ModelMapping}, nil
 }
 
 // UpdateFields 更新渠道（PATCH 语义：只发要改的字段 + id）。

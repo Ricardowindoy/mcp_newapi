@@ -14,6 +14,7 @@ import (
 
 // Summary 是渠道列表/详情的裁剪 DTO。
 // key 已在构造时掩码；完整 key 永不出本包。
+// model_mapping 为上游 JSON 字符串原样（""=无映射），非敏感、随读返回。
 type Summary struct {
 	ID           int     `json:"id"`
 	Name         string  `json:"name"`
@@ -24,6 +25,7 @@ type Summary struct {
 	BaseURL      string  `json:"base_url,omitempty"`
 	Models       string  `json:"models"`
 	Group        string  `json:"group"`
+	ModelMapping string  `json:"model_mapping,omitempty"`
 	Priority     int     `json:"priority"`
 	Weight       int     `json:"weight"`
 	TestModel    string  `json:"test_model,omitempty"`
@@ -42,6 +44,7 @@ type raw struct {
 	BaseURL      string  `json:"base_url"`
 	Models       string  `json:"models"`
 	Group        string  `json:"group"`
+	ModelMapping string  `json:"model_mapping"` // 上游 JSON 字符串；null 反序列化后为 ""
 	Priority     int     `json:"priority"`
 	Weight       int     `json:"weight"`
 	TestModel    string  `json:"test_model"`
@@ -54,7 +57,7 @@ func (r raw) toSummary() Summary {
 	s := Summary{
 		ID: r.ID, Name: r.Name, Type: r.Type, Status: r.Status,
 		Balance: r.Balance, BaseURL: r.BaseURL, Models: r.Models,
-		Group: r.Group, Priority: r.Priority, Weight: r.Weight,
+		Group: r.Group, ModelMapping: r.ModelMapping, Priority: r.Priority, Weight: r.Weight,
 		TestModel: r.TestModel, ResponseTime: r.ResponseTime,
 		UsedQuota: r.UsedQuota, Key: newapi.MaskKey(r.Key),
 	}

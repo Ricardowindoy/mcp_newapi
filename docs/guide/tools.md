@@ -36,9 +36,12 @@
 { "page": 1, "page_size": 20, "total": 42, "items": [
   { "id": 31, "name": "基元2_x", "type": 1, "status": 1, "status_reason": "",
     "balance": 12.5, "base_url": "https://…", "models": "deepseek-v4-pro,…",
-    "group": "default", "priority": 0, "weight": 0, "test_model": "",
+    "group": "default", "model_mapping": "{\"deepseek-v4-flash\":\"deepseek-v4-flash-0731\"}",
+    "priority": 0, "weight": 0, "test_model": "",
     "response_time": 2340, "used_quota": 812345.6, "key": "sk-a***7890" } ] }
 ```
+
+渠道项含 `model_mapping`（模型重定向 JSON 字符串原样，含上游缩进格式；无映射 / `null` 时不出该字段）。
 
 ### `newapi_get_channel`
 单渠道详情（需管理员 PAT）。参数：`id`（number，必填）。返回结构同上单条。
@@ -111,10 +114,10 @@
 ## admin 档（+6，`NEWAPI_WRITEMODE=admin`）
 
 ### `newapi_create_channel`
-创建渠道。参数：`name` / `type`（1=OpenAI 兼容等）/ `key` / `models`（逗号分隔）必填；`base_url?`、`group?`（默认 default）、`model_mapping?`（JSON）、`priority?`、`weight?`、`test_model?`。key 只在此请求中传输；上游不回 id，**按名回查**返回渠道 id。
+创建渠道。参数：`name` / `type`（1=OpenAI 兼容等）/ `key` / `models`（逗号分隔）必填；`base_url?`、`group?`（默认 default）、`model_mapping?`（JSON）、`priority?`、`weight?`、`test_model?`。key 只在此请求中传输；上游不回 id，**按名回查**返回渠道信息（id / name / type / status / model_mapping）。
 
 ### `newapi_update_channel`
-更新渠道，**PATCH 语义：只发显式传入的字段**。参数：`id` 必填；其余 `name?`、`key?`（留空不改，多 key 渠道慎用）、`models?`、`base_url?`、`group?`、`model_mapping?`、`priority?`、`weight?`、`test_model?`、`type?`、`auto_ban?`（渠道级自动禁用开关，按「是否出现」收集：true→1 / false→0 / 不传→不改）、`tag?`（空串清除）。**不能改 status**——启停走 `newapi_set_channel_status`。
+更新渠道，**PATCH 语义：只发显式传入的字段**。参数：`id` 必填；其余 `name?`、`key?`（留空不改，多 key 渠道慎用）、`models?`、`base_url?`、`group?`、`model_mapping?`、`priority?`、`weight?`、`test_model?`、`type?`、`auto_ban?`（渠道级自动禁用开关，按「是否出现」收集：true→1 / false→0 / 不传→不改）、`tag?`（空串清除）。**不能改 status**——启停走 `newapi_set_channel_status`。成功后回查回显 `name` / `models` / `priority` / `group` / `model_mapping`（显式输出，改后为空串 = 映射已清空）。
 
 ### `newapi_delete_channel`
 删除渠道（不可恢复）。参数：`id`、`confirm`（均必填）。

@@ -43,12 +43,13 @@ func CreateChannelHandler(client *newapi.Client, rep *reporter.Store) Handler {
 			return ErrResult(err)
 		}
 		return JSONResult(map[string]any{
-			"created": true,
-			"id":      ch.ID,
-			"name":    ch.Name,
-			"type":    ch.Type,
-			"status":  ch.Status,
-			"hint":    "创建成功；key 已设置（不回显），可用 newapi_test_channel 验证连通性",
+			"created":       true,
+			"id":            ch.ID,
+			"name":          ch.Name,
+			"type":          ch.Type,
+			"status":        ch.Status,
+			"model_mapping": ch.ModelMapping,
+			"hint":          "创建成功；key 已设置（不回显），可用 newapi_test_channel 验证连通性",
 		})
 	}
 }
@@ -97,6 +98,8 @@ func UpdateChannelHandler(client *newapi.Client, rep *reporter.Store) Handler {
 		res, _ := JSONResult(map[string]any{
 			"updated": true, "channel_id": id, "fields": keysOf(fields),
 			"name": ch.Name, "models": ch.Models, "priority": ch.Priority, "group": ch.Group,
+			// model_mapping 显式输出（含改后为空串=已清空），便于核对映射变更
+			"model_mapping": ch.ModelMapping,
 		})
 		return res, nil
 	}
