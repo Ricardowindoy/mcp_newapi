@@ -4,7 +4,7 @@ package mcp
 // 表驱动注册：新增/调整工具只改本文件的表 + 对应 handler 实现，server.go 不动。
 //
 // 表项四要素：Name / Tier / 声明（描述+参数） / Handler 工厂。
-// handler 实现按档位放在 tools_read.go / tools_ops.go / tools_admin.go。
+// handler 实现按档位放在 handler/read.go / handler/ops.go / handler/admin.go / handler/report.go。
 
 import (
 	"github.com/mark3labs/mcp-go/mcp"
